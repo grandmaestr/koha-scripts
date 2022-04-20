@@ -1,8 +1,7 @@
 #!/bin/bash
 
-# This script installs a new instance on a LAMP server with koha-common already installed.
+# This script installs a new instance on a LAMP server with koha-common already installed and configures Apache.
 # I've tested this on Ubuntu Server 20.04LTS but it should work on other Debian distros. 
-# You will need to configure Apache config files (/etc/apache2/sites-enabled/)
 # You can copy and paste this script onto your server and make it executable by running "chmod a+x /path/to/file_name"
 # To run the script, simply go to "/path/to/file_name" or if it's in your home directory, run "~/file_name" in the CLI.
 # This script is interactive, so you'll be prompted for input at various stages.
