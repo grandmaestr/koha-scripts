@@ -40,5 +40,5 @@ sudo rm -rf /etc/apache2/
 sudo rm -rf /etc/mysql
 
 # Clean orphaned  packages
-sudo  apt autoremove
+sudo  apt autoremove 
 sudo apt autoclean
