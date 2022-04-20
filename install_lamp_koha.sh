@@ -77,5 +77,5 @@ sudo koha-zebra --restart $instancename
 sudo koha-plack --enable $instancename
 sudo koha-plack --start $instancename
 
-# Print  koha_$instance name
+# Print koha_$instance password for the web-based installation. Username will be koha_$instancename
 sudo koha-passwd $instancename
