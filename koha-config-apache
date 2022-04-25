@@ -1,8 +1,17 @@
 #!/bin/bash
 
 # This script automatically configures the Apache config in /etc/apache2/sites-enabled/$instancename.conf after your Koha instance has been installed
+# Using sed to configure your ServerName for name-based installation.
 
-# Use sed to configure your ServerName for name-based installation.
+# List installed koha instances
+echo "You have the following instances installed on your server: $(koha-list)"
+
+# Prompt the user for the name of your koha instance
+echo "Enter the name of the Koha instance you wish to configure:"
+
+# Read the input and store in a variable
+read instancename
+
 # Prompt user to enter their OPAC domain/subdomain
 echo
 echo "Enter the your OPAC url only (Skip http:// or https://):"
