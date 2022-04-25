@@ -70,6 +70,9 @@ sudo systemctl restart apache2
 sudo koha-enable $instancename
 echo "The Koha instance $instancename has been successfully installed"
 
+# koha-plack requires the following Apache modules
+sudo a2enmod headers proxy_http
+
 # Start Zebra
 sudo koha-zebra --restart $instancename
 
