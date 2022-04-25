@@ -29,3 +29,11 @@ echo "Your Staff url is: $opacurl"
 
 # Replace ServerName with  OPAC url above
 sudo sed -i "/ServerName $instancename-intra.myDNSname.org/c\   ServerName $staffurl" /etc/apache2/sites-enabled/$instancename.conf
+
+# Check Apache for configuration errors
+echo "If you come across any errors, go to /etc/apache2/sites-enabled/$instancename."
+sleep 2
+sudo apachectl configtest
+
+# Restart Apache
+sudo systemctl restart apache2
