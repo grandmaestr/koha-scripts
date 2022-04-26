@@ -8,6 +8,35 @@
 # This script is interactive, so you'll be prompted for input at various stages.
 # You can modify or use this script however you like but I'd really appreciate it if you give me a shout out or attribution if you post it elsewhere :)
 
+# Prompt the user for the name of your koha instance. Input something simple and easily distinguishable from other instances.
+echo "Enter the name of your Koha instance:"
+read instancename
+
+# Prompt user for url or endpoint of remote database server
+echo "Enter the url/endpoint of your remote database server:"
+read hostname
+
+# Prompt user for root user of remote database server
+echo "Enter the username of your remote database root user:"
+read remotedbroot
+
+# Prompt user for password of remote database server
+echo "Enter the password for the root user of your remote database server:"
+read remotedbpwd
+
+# Prompt user for IP address of client server"
+echo "Enter the IP address of your client server (i.e. the server runnning the  Koha web application:"
+read clientipaddr
+
+# Prompt user to enter their OPAC domain/subdomain
+echo "Enter the your OPAC url only (Skip http:// or https://):"
+read  opacurl
+
+# Prompt user to enter their Staff URL
+echo "Enter the your Staff url only (Skip http:// or https://):"
+read  staffurl
+
+
 # Add a Koha Community Repository
 echo deb http://debian.koha-community.org/koha stable main | sudo tee /etc/apt/sources.list.d/koha.list
 
@@ -31,32 +60,71 @@ sudo systemctl restart apache2.service
 sudo apt install koha-common
 
 # Install  MariaDB or MySQL
-sudo apt install mysql-server
+sudo apt install mysql-client
 
 # Secure MySQL. You will recieve a number of prompts. This will ask if you want to configure the VALIDATE PASSWORD PLUGIN. It is best to answer No.
 # Note: Enabling this feature is something of a judgment call.
 # If enabled, passwords which don’t match the specified criteria will be rejected by MySQL with an error.
 # This will cause issues if you use a weak password in conjunction with software which automatically configures MySQL user credentials, such as the Ubuntu packages for phpMyAdmin.
 # It is safe to leave validation disabled, but you should always use strong, unique passwords for database credentials.
-sudo mysql_secure_installation
+
+read -r -p "Do you want to run mysql_secure_installation? [y/N] " response
+if [[ "$response" =~ ^([yY][eE][sS]|[yY])$ ]]
+then
+	sudo mysql_secure_installation
+else
+break
+fi
 
 # Install PHP. PHP is the component of your setup that will process code to display dynamic content.
 # It can run scripts, connect to your MySQL databases to get information, and hand the processed content over to your web server so that it can display the results to your visitors.
 sudo apt install php libapache2-mod-php php-mysql
 
-# Prompt the user for the name of your koha instance. Input something simple and easily distinguishable from other instances.
-echo "Enter the name of your Koha instance:"
 
-# Read the input and store in a variable
-read instancename
+# Create the instance with a remote database
+sudo koha-create --request-db $instancename
 
-# Create the instance
-sudo koha-create --create-db $instancename
+
+# Generate a password for the remote koha database
+remotekohadbpwd=$(</dev/urandom tr -dc 'A-Za-z0-9@#$%&_+=' | head -c 10)
+
+#create koha database and user on remote server. Works on MariaDB. May need to be modified for a MySQL server.
+mysql -h ${hostname} -u ${remotedbroot} -p${remotedbpwd} -e "CREATE DATABASE koha_${instancename};
+CREATE USER 'koha_${instancename}'@'${clientipaddr}' IDENTIFIED BY '${remotekohadbpwd}';
+GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, INDEX, ALTER, CREATE TEMPORARY TABLES,
+CREATE VIEW, EVENT, TRIGGER, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, EXECUTE ON koha_${instancename}.* to 'koha_${instancename}'@'${clientipaddr}'; FLUSH PRIVILEGES;"
+
 echo "You will need to configure your instance for name-based or ip installation. See /etc/apache2/sites-available/$instancename for more." 
 sleep 2
-# Enable your Koha instance
+
+#############################
+## Configure koha-conf.xml ##
+#############################
+koha_conf=/etc/koha/sites/$instancename/koha-conf.xml
+sudo sed -i "/<database>*/c\<database>koha_$instancename</database>" $koha_conf
+sudo sed -i "/<hostname>*/c\<hostname>$hostname</hostname>" $koha_conf
+sudo sed -i "/<user>*/c\<user>koha_$instancename</user>" $koha_conf
+sudo sed -i "/<pass>*/c\<pass>$remotekohadbpwd</pass>" $koha_conf
+
+## End Configure koha-conf.xml ##
+
+###############################
+## Enable your Koha instance ##
+###############################
+
 sudo a2enmod deflate
 sudo a2ensite $instancename
+
+
+#############################
+## Configure Apache 	   ##
+#############################
+
+# Replace ServerName with  OPAC url above
+sudo sed -i "/ServerName $instancename.myDNSname.org/c\   ServerName $opacurl" /etc/apache2/sites-enabled/$instancename.conf
+
+# Replace ServerName with  OPAC url above
+sudo sed -i "/ServerName $instancename-intra.myDNSname.org/c\   ServerName $staffurl" /etc/apache2/sites-enabled/$instancename.conf
 
 # Check Apache for configuration errors
 echo "If you come across any errors, go to /etc/apache2/sites-enabled/$instancename."
@@ -65,6 +133,10 @@ sudo apachectl configtest
 
 # Restart Apache
 sudo systemctl restart apache2
+
+##########################
+## End Configure Apache ##
+##########################
 
 # Enable instance
 sudo koha-enable $instancename
