@@ -1,0 +1,10 @@
+#!/bin/bash
+
+# This script to check if sites listed in the {site_list} file are alive and responding
+
+while read url
+do
+        echo "Checking if $url is alive."
+        curl -LIs $url | head -n 1
+        echo  " "
+done < <(tr ' ' '\n' < {site_list})
