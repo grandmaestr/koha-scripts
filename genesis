@@ -17,16 +17,16 @@ sudo systemctl stop koha-common
 sudo systemctl stop phpmyadmin*
 
 # Purge Apache
-sudo apt remove --purge apache2*
+sudo apt -y remove --purge apache2*
 
 # Purge Mysql
-sudo apt remove --purge  mysql-*
+sudo apt -y remove --purge  mysql-*
 
 # Purge Koha-common
-sudo apt remove --purge koha-common
+sudo apt -y remove --purge koha-common
 
 # Purge php
-sudo apt remove --purge phpmyadmin*
+sudo apt -y remove --purge phpmyadmin*
 
 # Clean residual files. Deletes all directories
 
@@ -40,5 +40,5 @@ sudo rm -rf /etc/apache2/
 sudo rm -rf /etc/mysql
 
 # Clean orphaned  packages
-sudo  apt autoremove 
-sudo apt autoclean
+# sudo  apt autoremove 
+# sudo apt autoclean

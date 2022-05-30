@@ -38,47 +38,16 @@ sudo apt install mysql-server
 # If enabled, passwords which don’t match the specified criteria will be rejected by MySQL with an error.
 # This will cause issues if you use a weak password in conjunction with software which automatically configures MySQL user credentials, such as the Ubuntu packages for phpMyAdmin.
 # It is safe to leave validation disabled, but you should always use strong, unique passwords for database credentials.
-sudo mysql_secure_installation
+ sudo mysql_secure_installation
 
 # Install PHP. PHP is the component of your setup that will process code to display dynamic content.
 # It can run scripts, connect to your MySQL databases to get information, and hand the processed content over to your web server so that it can display the results to your visitors.
 sudo apt install php libapache2-mod-php php-mysql
 
-# Prompt the user for the name of your koha instance. Input something simple and easily distinguishable from other instances.
-echo "Enter the name of your Koha instance:"
+# Install awscli 
+sudo apt install awscli
 
-# Read the input and store in a variable
-read instancename
-
-# Create the instance
-sudo koha-create --create-db $instancename
-echo "You will need to configure your instance for name-based or ip installation. See /etc/apache2/sites-available/$instancename for more." 
-sleep 2
-# Enable your Koha instance
-sudo a2enmod deflate
-sudo a2ensite $instancename
-
-# Check Apache for configuration errors
-echo "If you come across any errors, go to /etc/apache2/sites-enabled/$instancename."
-sleep 2
-sudo apachectl configtest
-
-# Restart Apache
-sudo systemctl restart apache2
-
-# Enable instance
-sudo koha-enable $instancename
-echo "The Koha instance $instancename has been successfully installed"
-
-# koha-plack requires the following Apache modules
-sudo a2enmod headers proxy_http
-
-# Start Zebra
-sudo koha-zebra --restart $instancename
-
-# Enable Plack
-sudo koha-plack --enable $instancename
-sudo koha-plack --start $instancename
-
-# Print koha_$instance password for the web-based installation. Username will be koha_$instancename
-sudo koha-passwd $instancename
+# Create koha-common.cnf 
+sudo touch /etc/mysql/koha-common.cnf
+sudo chown root:root /etc/mysql/koha-common.cnf
+ 
