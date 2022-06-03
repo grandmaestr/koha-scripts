@@ -111,10 +111,10 @@ sudo koha-plack --stop $instancename
 sudo koha-plack --start $instancename
 
 # Replace ServerName with  OPAC url above
-sudo sed -i "/ServerName $instancename.myDNSname.org/c\   ServerName $opacurl/" /etc/apache2/sites-enabled/$instancename.conf
+sudo sed -i "/ServerName $instancename.myDNSname.org/c\   ServerName $opacurl" /etc/apache2/sites-enabled/$instancename.conf
 
 # Replace ServerName with  OPAC url above
-sudo sed -i "/ServerName $instancename-intra.myDNSname.org/c\   ServerName $staffurl/" /etc/apache2/sites-enabled/$instancename.conf
+sudo sed -i "/ServerName $instancename-intra.myDNSname.org/c\   ServerName $staffurl" /etc/apache2/sites-enabled/$instancename.conf
 
 # End loop
 done
