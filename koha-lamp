@@ -31,14 +31,16 @@ sudo systemctl restart apache2.service
 sudo apt install koha-common
 
 # Install  MariaDB or MySQL
-sudo apt install mysql-server
+# sudo apt install mysql-server
+
+sudo apt install mysql-client
 
 # Secure MySQL. You will recieve a number of prompts. This will ask if you want to configure the VALIDATE PASSWORD PLUGIN. It is best to answer No.
 # Note: Enabling this feature is something of a judgment call.
 # If enabled, passwords which don’t match the specified criteria will be rejected by MySQL with an error.
 # This will cause issues if you use a weak password in conjunction with software which automatically configures MySQL user credentials, such as the Ubuntu packages for phpMyAdmin.
 # It is safe to leave validation disabled, but you should always use strong, unique passwords for database credentials.
- sudo mysql_secure_installation
+# sudo mysql_secure_installation
 
 # Install PHP. PHP is the component of your setup that will process code to display dynamic content.
 # It can run scripts, connect to your MySQL databases to get information, and hand the processed content over to your web server so that it can display the results to your visitors.
@@ -51,3 +53,5 @@ sudo apt install awscli
 sudo touch /etc/mysql/koha-common.cnf
 sudo chown root:root /etc/mysql/koha-common.cnf
  
+# Restart Apache
+sudo systemctl restart apache2.service

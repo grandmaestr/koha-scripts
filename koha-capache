@@ -8,28 +8,45 @@
 # This script is interactive, so you'll be prompted for input at various stages.
 # You can modify or use this script however you like but I'd really appreciate it if you give me a shout out or attribution if you post it elsewhere :)
 
-
 # Prompt the user for the name of your koha instance. Input something simple and easily distinguishable from other instances.
-echo "Enter the name of your Koha instance:"
+echo "You have the following Koha instances running on this server:"
+echo $(koha-list)
 
-# Read the input and store in a variable
-read instancename
+printf "\n"
 
-# Prompt user to enter their OPAC domain/subdomain
-echo "Enter the your OPAC url only (Skip http:// or https://):"
-read  opacurl
+read -p "Enter the name of each  Koha instance you want to configure separated by a space: " -a kinstance
 
-# Prompt user to enter their Staff URL
-echo "Enter the your Staff url only (Skip http:// or https://):"
-read  staffurl
+opac=""
+staff=""
 
+for instancename in "${kinstance[@]}"; do
+	while
+	read -p "Continue configuring $instancename.conf (y/n)" response && [[ $response =~ ^([yY][eE][sS]|[yY])$ ]] 
+	do
 
-# Replace ServerName with  OPAC url above
-sudo sed -i "/ServerName $instancename.myDNSname.org/c\   ServerName $opacurl" /etc/apache2/sites-enabled/$instancename.conf
+		echo "Configuring $instancename.conf"
 
-# Replace ServerName with  OPAC url above
-sudo sed -i "/ServerName $instancename-intra.myDNSname.org/c\   ServerName $staffurl" /etc/apache2/sites-enabled/$instancename.conf
+		printf ".......... \n"
 
+			# Prompt user to enter their Staff URL
+			read -p "Enter the your Staff url $instancename (Skip http:// or https://):" staffurl
+
+			staff+=" ${staffurl}"
+
+			# Replace ServerName with  OPAC url above
+	                sudo sed  -i "/ServerName*/c\   ServerName $staffurl" /etc/apache2/sites-enabled/$instancename.conf
+
+			# Prompt user to enter their OPAC domain/subdomain
+			read -p "Enter the your OPAC url for $instancename (Skip http:// or https://):" opacurl
+
+			opac+=" ${opacurl}"
+
+			# Replace *ServerName with  OPAC url above
+			sudo sed -i  "0,/ServerName $staffurl/s//ServerName $opacurl/" /etc/apache2/sites-enabled/$instancename.conf
+
+			sudo less /etc/apache2/sites-enabled/$instancename.conf
+	done
+
+done
 # Restart Apache
 sudo systemctl restart apache2
-
