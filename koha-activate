@@ -1,0 +1,25 @@
+#!/bin/bash
+# This script 'activates' your Koha instance i.e. starts Plack, Zebra etc.
+echo "You have the following Koha instances running on this server:"
+echo $(koha-list)
+printf "\n"
+
+# Prompt the user for the name of your koha instance(s). Input something simple and easily distinguishable from other instances.
+read -p "Enter the name of each  Koha instance you want activate separated by a space: " -a instance
+
+# Enable and start  Koha instances
+for instancename in "${instance[@]}"; do
+
+# Enable your Koha instance config
+sudo a2ensite $instancename
+
+# Enable instance
+sudo koha-worker --start $instancename
+
+# Start Zebra
+sudo koha-zebra --start $instancename
+
+# Enable Plack
+sudo koha-plack --enable $instancename
+sudo koha-plack --start $instancename
+done
