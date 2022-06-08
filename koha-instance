@@ -93,22 +93,8 @@ FLUSH PRIVILEGES;"
 koha_conf=/etc/koha/sites/$instancename/koha-conf.xml
 sudo sed -i "/<pass>*/c\<pass>$remotekohadbpwd</pass>" $koha_conf
 
-# Enable Koha instance
-sudo koha-enable $instancename
-
 # Enable your Koha instance config
 sudo a2ensite $instancename
-
-# Enable instance
-sudo koha-worker --restart $instancename
-
-# Start Zebra
-sudo koha-zebra --restart $instancename
-
-# Enable Plack
-sudo koha-plack --enable $instancename
-sudo koha-plack --stop $instancename
-sudo koha-plack --start $instancename
 
 # Replace ServerName with  OPAC url above
 sudo sed -i "/ServerName $instancename.myDNSname.org/c\   ServerName $opacurl" /etc/apache2/sites-enabled/$instancename.conf
@@ -116,9 +102,34 @@ sudo sed -i "/ServerName $instancename.myDNSname.org/c\   ServerName $opacurl" /
 # Replace ServerName with  OPAC url above
 sudo sed -i "/ServerName $instancename-intra.myDNSname.org/c\   ServerName $staffurl" /etc/apache2/sites-enabled/$instancename.conf
 
+# The following commands stop the Koha instance soon after they are created. I found this necessary when creating multiple instances in order to reduce CPU usage.
+# Enable Koha instance
+sudo koha-disable $instancename
+
+# Enable instance
+sudo koha-worker --stop $instancename
+
+# Start Zebra
+sudo koha-zebra --stop $instancename
+
+# Enable Plack
+sudo koha-plack --stop $instancename
+
 # End loop
 done
 
+# Enable and start  Koha instances
+for instancename in "${instance[@]}"; do
+# Enable instance
+sudo koha-worker --start $instancename
+
+# Start Zebra
+sudo koha-zebra --start $instancename
+
+# Enable Plack
+sudo koha-plack --enable $instancename
+sudo koha-plack --start $instancename
+done
 # Check Apache for configuration errors
 echo "If you come across any errors, check your instance Apache config at /etc/apache2/sites-enabled/$instancename."
 sudo apachectl configtest
