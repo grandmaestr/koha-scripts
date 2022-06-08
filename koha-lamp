@@ -15,12 +15,12 @@ echo deb http://debian.koha-community.org/koha stable main | sudo tee /etc/apt/s
 wget -O- https://debian.koha-community.org/koha/gpg.asc | sudo apt-key add -
 
 # Update and upgrade Ubuntu
-sudo apt update 
-sudo apt upgrade
-sudo apt clean
+sudo apt -y update 
+sudo apt -y upgrade
+sudo apt -y clean
 
 # Install Apache web server
-sudo apt install apache2
+sudo apt -y install apache2
 
 # Enable the Apache mod_rewrite modules. The following commands enable Apache to create the configuration files.
 sudo a2enmod rewrite
@@ -28,12 +28,12 @@ sudo a2enmod cgi
 sudo systemctl restart apache2.service
 
 # Download and install the latest Koha release
-sudo apt install koha-common
+sudo apt -y install koha-common
 
 # Install  MariaDB or MySQL
-# sudo apt install mysql-server
+# sudo apt -y install mysql-server
 
-sudo apt install mysql-client
+sudo apt -y install mysql-client
 
 # Secure MySQL. You will recieve a number of prompts. This will ask if you want to configure the VALIDATE PASSWORD PLUGIN. It is best to answer No.
 # Note: Enabling this feature is something of a judgment call.
@@ -44,10 +44,12 @@ sudo apt install mysql-client
 
 # Install PHP. PHP is the component of your setup that will process code to display dynamic content.
 # It can run scripts, connect to your MySQL databases to get information, and hand the processed content over to your web server so that it can display the results to your visitors.
-sudo apt install php libapache2-mod-php php-mysql
+sudo apt -y install php libapache2-mod-php php-mysql
 
 # Install awscli 
-sudo apt install awscli
+sudo apt -y install awscli
+
+sudo apt -y install mlocate
 
 # Create koha-common.cnf 
 sudo touch /etc/mysql/koha-common.cnf
