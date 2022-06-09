@@ -17,6 +17,9 @@ read -p "Enter the username of your remote database root user:	" remotedbroot
 # Prompt user for password of remote database server
 read -p  "Enter the password for the root user of your remote database server:	" remotedbpwd
 
+# Prompt user for local db server password
+read -p  "Enter the password for the root user of your local database server:	" localdbpwd
+
 # Prompt user for IP address of client server. If using AWS EC2 instances, enter the private IP
 read -p "Enter the IP address of your client server (i.e. the server runnning the Koha web application):   " clientipaddr
 
@@ -30,7 +33,7 @@ koha_conf=/etc/koha/sites/$instancename/koha-conf.xml
 remotekohadbpwd=$(sudo xmlstarlet sel -t -v 'yazgfs/config/pass' $koha_conf)
 
 # Dump Koha database
-mysqldump -uroot -p --single-transaction --databases koha_$instancename  --set-gtid-purged=OFF > /tmp/koha_$instancename.sql
+mysqldump -uroot -p${localdbpwd} --single-transaction --databases koha_$instancename  --set-gtid-purged=OFF > /tmp/koha_$instancename.sql
 
 # Restore Koha database to remote db server
 mysql -h ${hostname} -u ${remotedbroot} -p${remotedbpwd} < /tmp/koha_$instancename.sql
