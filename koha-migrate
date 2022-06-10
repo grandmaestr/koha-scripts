@@ -48,7 +48,7 @@ FLUSH PRIVILEGES;"
 sudo rm -f /tmp/koha_$instancename.sql
 
 # Replace database endpoint with remote db endpoint
-sudo xmlstarlet edit -L --update 'yazgfs/config/pass' --value "$remotekohadbpwd" $koha_conf
+sudo xmlstarlet edit -L --update 'yazgfs/config/hostname' --value "$hostname" $koha_conf
 
 done
 
