@@ -1,6 +1,7 @@
 #!/bin/bash
 
-# This script 'activates' your Koha instance i.e. starts Plack, Zebra etc.
+# This script migrates your local koha databases to a remote database server.
+
 echo "You have the following Koha instances running on this server:"
 echo $(koha-list)
 printf "\n"
