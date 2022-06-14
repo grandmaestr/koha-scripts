@@ -12,11 +12,14 @@ read -p "Enter the name of each  Koha instance you want activate separated by a 
 # Prompt the user for the remote database endpoint
 read -p "Enter the URL/endpoint of your database server:   " hostname
 
-# Prompt user for root user of remote database server
+# Prompt user for root user of the remote database server
 read -p "Enter the username of your remote database root user:	" remotedbroot
 
-# Prompt user for password of remote database server
+# Prompt user for password of the remote database server
 read -p  "Enter the password for the root user of your remote database server:	" remotedbpwd
+
+# Prompt user for root user of the local database server
+read -p "Enter the username of your local database root user:  " localdbroot
 
 # Prompt user for local db server password
 read -p  "Enter the password for the root user of your local database server:	" localdbpwd
@@ -34,7 +37,7 @@ koha_conf=/etc/koha/sites/$instancename/koha-conf.xml
 remotekohadbpwd=$(sudo xmlstarlet sel -t -v 'yazgfs/config/pass' $koha_conf)
 
 # Dump Koha database
-mysqldump -uroot -p${localdbpwd} --single-transaction --databases koha_$instancename  --set-gtid-purged=OFF > /tmp/koha_$instancename.sql
+mysqldump -u${localdbroot} -p${localdbpwd} --single-transaction --databases koha_$instancename  --set-gtid-purged=OFF > /tmp/koha_$instancename.sql
 
 # Restore Koha database to remote db server
 mysql -h ${hostname} -u ${remotedbroot} -p${remotedbpwd} < /tmp/koha_$instancename.sql
