@@ -6,8 +6,8 @@ echo "You have the following Koha instances running on this server:"
 echo $(koha-list)
 printf "\n"
 
-# Prompt the user for the name of your koha instance(s). Input something simple and easily distinguishable from other instances.
-read -p "Enter the name of each  Koha instance you want activate separated by a space:	" -a instance
+# Prompt the user for the name(s) of the Koha instance(s) they want to migrate 
+read -p "Enter the name of each  Koha instance database you want to migrate separated by a space:	" -a instance
 
 # Prompt the user for the remote database endpoint
 read -p "Enter the URL/endpoint of your database server:   " hostname
