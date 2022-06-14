@@ -1,37 +1,41 @@
 #!/bin/bash
 # This script drops all your koha databases. Be very careful!
 
+echo "You have the following Koha instances running on this server:"
+echo $(koha-list)
+printf '\n'
+
 # Prompt the user for the name of your koha instance(s). Input something simple and easily distinguishable from other instances.
-read -p "Enter the name of each  Koha instance you want activate separated by a space:	" -a instance
+read -p "Enter the name of each  Koha instance whose database you want to drop separated by a space:	" -a instance
 
-# Prompt the user for the remote database endpoint
-read -p "Enter the URL/endpoint of your database server:   " hostname
+# Prompt the user for the remote database endpoint. If using the local database enter "localhost"
+read -p "Enter the URL/endpoint of your database server (enter "localhost" if dropping users and dbs on the local server):   " hostname
 
-# Prompt user for root user of remote database server
+# Prompt user for root user of local or remote database server
 read -p "Enter the username of your remote database root user:	" remotedbroot
 
-# Prompt user for password of remote database server
+# Prompt user for password of local or remote database server
 read -p  "Enter the password for the root user of your remote database server:	" remotedbpwd
 
 # Prompt user for IP address of client server. If using AWS EC2 instances, enter the private IP
 read -p "Enter the IP address of your client server (i.e. the server runnning the Koha web application):   " clientipaddr
 
+# Display all databases and users
+mysql -h ${hostname} -u ${remotedbroot} -p${remotedbpwd} -e "
+SHOW DATABASES;
+SELECT user,host FROM mysql.user; "
+
 # Enable and start  Koha instances
 for instancename in "${instance[@]}"; do
 
-# Delete mysql user
-
-# Create Koha user in remote db server
+# Delete Koha mysql user and database if they exist
 mysql -h ${hostname} -u ${remotedbroot} -p${remotedbpwd} -e "
-DROP DATABASE koha_${instancename};
-delete from mysql.user where user like "koha%";
-#DROP USER 'koha_${instancename}'@'${clientipaddr}';
+DROP USER IF EXISTS 'koha_${instancename}'@'${clientipaddr}';
+DROP DATABASE IF EXISTS koha_${instancename};
 FLUSH PRIVILEGES;"
-
 done
 
 # Display remaining databases and users
 mysql -h ${hostname} -u ${remotedbroot} -p${remotedbpwd} -e "
 SHOW DATABASES;
 SELECT user, host from mysql.user;"
-
