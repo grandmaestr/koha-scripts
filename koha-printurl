@@ -1,8 +1,0 @@
-#!/bin/bash
-# This script prints the OPAC and Staff page URLs from your Apache config files
-for i in $(koha-list); do
-
-echo "########################"
-echo "$i"
-sudo sed -n /ServerName/p /etc/apache2/sites-enabled/$i.conf
-done
