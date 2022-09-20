@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# This script migrates your local koha databases to a remote database server.
+# This script updates the URL of your database server
 
 echo "You have the following Koha instances running on this server:"
 echo $(koha-list)
@@ -9,15 +9,15 @@ printf "\n"
 # Prompt the user for the name(s) of the Koha instance(s) they want to migrate 
 read -p "Enter the name of each  Koha instance database you want to migrate separated by a space:	" -a instance
 
-# Prompt the user for the remote database endpoint
+# Prompt the user for the database endpoint
 read -p "Enter the URL/endpoint of your database server:   " hostname
 
 
-# Prompt user for root user of the remote database server
-read -p "Enter the username of your remote database root user:	" remotedbroot
+# Prompt user for root user of the database server
+read -p "Enter the username of your database root user:	" remotedbroot
 
-# Prompt user for password of the remote database server
-echo "Enter the password for the root user of your remote database server: "
+# Prompt user for password of the database server
+echo "Enter the password for the root user of your database server: "
 read -s remotedbpwd
 
 
