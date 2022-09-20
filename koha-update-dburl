@@ -21,9 +21,6 @@ echo "Enter the password for the root user of your remote database server: "
 read -s remotedbpwd
 
 
-# Prompt the user the ipaddress of the web server
-read -p "Enter the IP address of your web server:	" clientipaddr
-
 # Enable and start  Koha instances
 for instancename in "${instance[@]}"; do
 
@@ -38,13 +35,6 @@ echo "The current DB hostname for $instancename is $(sudo xmlstarlet sel -t -v '
 
 # Replace database endpoint with remote db endpoint
 sudo xmlstarlet edit -L --update 'yazgfs/config/hostname' --value "$hostname" $koha_conf
-
-# Create Koha user in remote db server
-mysql -h ${hostname} -u ${remotedbroot} -p${remotedbpwd} -e "
-CREATE USER IF NOT EXISTS 'koha_${instancename}'@'${clientipaddr}' IDENTIFIED BY '${remotekohadbpwd}';
-GRANT ALL PRIVILEGES ON koha_${instancename}.* to 'koha_${instancename}'@'${clientipaddr}';
-FLUSH PRIVILEGES;"
-
 
 echo "The new  DB hostname for $instancename is $(sudo xmlstarlet sel -t -v 'yazgfs/config/hostname' $koha_conf)"
 
