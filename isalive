@@ -7,4 +7,4 @@ do
         echo "Checking if $url is alive."
         curl -LIs $url | head -n 1
         echo  " "
-done < <(tr ' ' '\n' < {site_list})
+done < <(tr ' ' '\n' < ./site_list)
