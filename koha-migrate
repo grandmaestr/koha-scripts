@@ -44,7 +44,7 @@ mysql -h ${hostname} -u ${remotedbroot} -p${remotedbpwd} < /tmp/koha_$instancena
 
 # Create Koha user in remote db server
 mysql -h ${hostname} -u ${remotedbroot} -p${remotedbpwd} -e "
-CREATE USER 'koha_${instancename}'@'${clientipaddr}' IDENTIFIED BY '${remotekohadbpwd}';
+CREATE USER IF NOT EXISTS 'koha_${instancename}'@'${clientipaddr}' IDENTIFIED BY '${remotekohadbpwd}';
 GRANT ALL PRIVILEGES ON koha_${instancename}.* to 'koha_${instancename}'@'${clientipaddr}';
 FLUSH PRIVILEGES;"
 

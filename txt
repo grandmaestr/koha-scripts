@@ -1,0 +1,23 @@
+--------------
+mysql  Ver 8.0.30-0ubuntu0.20.04.2 for Linux on aarch64 ((Ubuntu))
+
+Connection id:		6078
+Current database:	koha_ksdemo
+Current user:		koha_ksdemo@172.31.30.149
+SSL:			Cipher in use is ECDHE-RSA-AES128-GCM-SHA256
+Current pager:		stdout
+Using outfile:		''
+Using delimiter:	;
+Server version:		5.7.12 MySQL Community Server (GPL)
+Protocol version:	10
+Connection:		koha-prod-20sept22-11h19-upgrade-db-cluster.cluster-cattltdd1mcw.us-east-1.rds.amazonaws.com via TCP/IP
+Server characterset:	latin1
+Db     characterset:	latin1
+Client characterset:	utf8mb4
+Conn.  characterset:	utf8mb4
+TCP port:		3306
+Uptime:			4 hours 4 min 1 sec
+
+Threads: 31  Questions: 139842  Slow queries: 0  Opens: 2458  Flush tables: 1  Open tables: 1808  Queries per second avg: 9.551
+--------------
+
