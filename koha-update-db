@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# This script migrates your local koha databases to a remote database server.
+# This script updates the URL, username, password, and client ip address  of your remote or local database server
 
 echo "You have the following Koha instances running on this server:"
 echo $(koha-list)
