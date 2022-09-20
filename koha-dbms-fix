@@ -1,0 +1,76 @@
+#!/bin/bash
+
+# This script migrates your local koha databases to a remote database server.
+
+echo "You have the following Koha instances running on this server:"
+echo $(koha-list)
+printf "\n"
+
+# Prompt the user for the name(s) of the Koha instance(s) they want to migrate 
+read -p "Enter the name of each  Koha instance database you want to migrate separated by a space:	" -a instance
+
+# Prompt the user for the remote database endpoint
+read -p "Enter the URL/endpoint of your database server:   " hostname
+
+# Prompt user for root user of the remote database server
+read -p "Enter the username of your remote database root user:	" remotedbroot
+
+# Prompt user for password of the remote database server
+read -p  "Enter the password for the root user of your remote database server:	" remotedbpwd
+
+# Prompt user for root user of the local database server
+read -p "Enter the username of your local database root user:  " localdbroot
+
+# Prompt user for local db server password
+read -p  "Enter the password for the root user of your local database server:	" localdbpwd
+
+# Prompt user for IP address of client server. If using AWS EC2 instances, enter the private IP
+read -p "Enter the IP address of your client server (i.e. the server runnning the Koha web application):   " clientipaddr
+
+# Enable and start  Koha instances
+for instancename in "${instance[@]}"; do
+
+# Set the path to koha_conf.xml
+koha_conf=/etc/koha/sites/$instancename/koha-conf.xml
+
+# Retrieve the Koha user password in koha-conf.xml
+remotekohadbpwd=$(sudo xmlstarlet sel -t -v 'yazgfs/config/pass' $koha_conf)
+
+# Dump Koha database
+mysqldump -u${localdbroot} -p${localdbpwd} --single-transaction --databases koha_$instancename  --set-gtid-purged=OFF > /tmp/koha_$instancename.sql
+
+# Restore Koha database to remote db server
+mysql -h ${hostname} -u ${remotedbroot} -p${remotedbpwd} < /tmp/koha_$instancename.sql
+
+# Create Koha user in remote db server
+mysql -h ${hostname} -u ${remotedbroot} -p${remotedbpwd} -e "
+CREATE USER IF NOT EXISTS 'koha_${instancename}'@'${clientipaddr}' IDENTIFIED BY '${remotekohadbpwd}';
+GRANT ALL PRIVILEGES ON koha_${instancename}.* to 'koha_${instancename}'@'${clientipaddr}';
+FLUSH PRIVILEGES;"
+
+# Delete database dump in /tmp/
+sudo rm -f /tmp/koha_$instancename.sql
+
+# Replace database endpoint with remote db endpoint
+sudo xmlstarlet edit -L --update 'yazgfs/config/hostname' --value "$hostname" $koha_conf
+
+done
+
+# Update koha-common.cnf with config for remote db
+echo "
+[client]
+host     = ${hostname}
+user     = ${remotedbroot}
+password = ${remotedbpwd}
+socket   = /var/run/mysqld/mysqld.sock
+[mysql_upgrade]
+host     = ${hostname}
+user     = ${remotedbroot}
+password = ${remotedbpwd}
+socket   = /var/run/mysqld/mysqld.sock
+" | sudo tee /etc/mysql/koha-common.cnf >/dev/null
+
+# Reload koha-common and memcached
+sudo systemctl restart koha-common.service memcached.service
+
+echo "Success"
