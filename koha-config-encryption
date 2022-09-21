@@ -1,0 +1,30 @@
+#!/bin/bash
+
+# This script configures a missing encryption_key element in koha-conf.xml
+set -x
+set -e
+set -u
+
+for i in $(koha-list); do
+	# set path to koha-conf.xml
+	configpath=/etc/koha/sites/$i/koha-conf.xml
+	
+	# check if encryption key element exists
+	if [ $(xmlstarlet sel -t -v "count(yazgfs/config/encryption_key)" $configpath) -eq "0" ];
+	then
+	
+	# copy koha-conf.xml to tmp incase you need to restore
+	cp $configpath /tmp/$i.koha-conf.xml
+ 	
+	# generate encryption key and set to variable
+	keyvalue=$(pwgen 32 -1)	
+	
+	# if not existing, insert element
+	xmlstarlet ed -L -P -s "/yazgfs/config" -t elem -n encryption_key -v $keyvalue $configpath 	
+fi
+
+done
+
+
+echo "#################################################################"
+echo "If you encountered problems run koha-config-encryption-restore immediately after execution of koha-config-encryption"
