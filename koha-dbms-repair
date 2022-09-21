@@ -17,7 +17,6 @@ do
 		SELECT i.issue_id       FROM issues i    JOIN old_issues oi       ON i.issue_id=oi.issue_id;" | tr '\t' ',' > /tmp/$k-issue_id.txt
         sudo koha-mysql $k -Nse "
 		SELECT r.reserve_id     FROM reserves r  JOIN old_reserves o      ON r.reserve_id=o.reserve_id;" | tr '\t' ',' > /tmp/$k-reserve_id.txt
-done
 
 while read i; 
 do
@@ -44,3 +43,4 @@ do
         sudo koha-mysql $k -Nse "
                 DELETE FROM old_reserves WHERE reserve_id  IN ($i);"
         done  < /tmp/$k-reserve_id.txt
+done
