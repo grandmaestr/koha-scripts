@@ -3,8 +3,6 @@
 # This script restores the original config if run immediately after koha-config-encryption (immediately since each execution overwrrites /tmp/$i.koha-conf.xml
 
 set -x
-set -e
-set -u
 
 for i in $(koha-list); do
         # set path to koha-conf.xml

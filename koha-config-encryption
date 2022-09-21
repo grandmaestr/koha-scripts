@@ -2,8 +2,6 @@
 
 # This script configures a missing encryption_key element in koha-conf.xml
 set -x
-set -e
-set -u
 
 for i in $(koha-list); do
 	# set path to koha-conf.xml
