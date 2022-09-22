@@ -21,6 +21,7 @@ sudo apt -y clean
 
 # Install Apache web server
 sudo apt -y install apache2
+sudo a2enmod headers proxy_http
 
 # Enable the Apache mod_rewrite modules. The following commands enable Apache to create the configuration files.
 sudo a2enmod rewrite
