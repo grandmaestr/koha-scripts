@@ -1,0 +1,84 @@
+#!/bin/bash
+
+# This script install koha and setups an instance with a local MySQL/MariaDB server
+# I've tested this on Ubuntu Server 20.04LTS but it should work on other Debian distros. 
+# You will need to configure Apache config files (/etc/apache2/sites-enabled/)
+# You can copy and paste this script onto your server and make it executable by running "chmod a+x /path/to/file_name"
+# To run the script, simply go to "/path/to/file_name" or if it's in your home directory, run "~/file_name" in the CLI.
+# This script is interactive, so you'll be prompted for input at various stages.
+# You can modify or use this script however you like but I'd really appreciate it if you give me a shout out or attribution if you post it elsewhere :)
+
+echo "You have the following Koha instances running on this server:"
+echo $(koha-list)
+printf "\n"
+
+# Prompt the user for the name of your koha instance(s). Input something simple and easily distinguishable from other instances.
+read -p "Enter the name of each  Koha instance you want to create separated by a space: " -a instance
+
+# Store array in variables
+hn=""
+
+# Begin instance creation loop
+for instancename in "${instance[@]}"; do
+hn+=" ${hostname}"
+
+
+# koha-plack requires the following Apache modules
+sudo a2enmod headers proxy_http
+sudo a2enmod cgi
+sudo a2enmod deflate
+
+# Prompt user to enter their OPAC domain/subdomain
+echo "Enter the OPAC page URL for $instancename  (Skip http:// or https://):"
+read  opacurl
+
+# Prompt user to enter their Staff URL
+echo "Enter the Staff page URL for $instancename  (Skip http:// or https://):"
+read  staffurl
+
+# Create the instance
+sudo koha-create --create-db $instancename
+
+# Enable your Koha instance config
+sudo a2ensite $instancename
+
+# Replace ServerName with  OPAC url above
+sudo sed -i "/ServerName $instancename.myDNSname.org/c\   ServerName $opacurl" /etc/apache2/sites-enabled/$instancename.conf
+
+# Replace ServerName with  OPAC url above
+sudo sed -i "/ServerName $instancename-intra.myDNSname.org/c\   ServerName $staffurl" /etc/apache2/sites-enabled/$instancename.conf
+
+# The following commands stop the Koha instance soon after they are created. I found this necessary when creating multiple instances in order to reduce CPU usage.
+# Enable Koha instance
+sudo koha-disable $instancename
+
+# Enable instance
+sudo koha-worker --stop $instancename
+
+# Start Zebra
+sudo koha-zebra --stop $instancename
+
+# Enable Plack
+sudo koha-plack --stop $instancename
+
+# End loop
+done
+
+# Enable and start  Koha instances
+for instancename in "${instance[@]}"; do
+# Enable instance
+sudo koha-worker --start $instancename
+
+# Start Zebra
+sudo koha-zebra --start $instancename
+
+# Enable Plack
+sudo koha-plack --enable $instancename
+sudo koha-plack --start $instancename
+done
+# Check Apache for configuration errors
+echo "If you come across any errors, check your instance Apache config at /etc/apache2/sites-enabled/$instancename."
+sudo apachectl configtest
+
+# Restart Apache
+sudo systemctl restart apache2
