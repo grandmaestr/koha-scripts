@@ -1,0 +1,138 @@
+#!/bin/bash
+
+# This script creates a koha instance with a remote database server
+# I've tested this on Ubuntu Server 20.04LTS but it should work on other Debian distros. 
+# You will need to configure Apache config files (/etc/apache2/sites-enabled/)
+# You can copy and paste this script onto your server and make it executable by running "chmod a+x /path/to/file_name"
+# To run the script, simply go to "/path/to/file_name" or if it's in your home directory, run "~/file_name" in the CLI.
+# This script is interactive, so you'll be prompted for input at various stages.
+# You can modify or use this script however you like but I'd really appreciate it if you give me a shout out or attribution if you post it elsewhere :)
+
+echo "You have the following Koha instances running on this server:"
+echo $(koha-list)
+printf "\n"
+
+# Prompt the user for the name of your koha instance(s). Input something simple and easily distinguishable from other instances.
+read -p "Enter the name of each  Koha instance you want to create separated by a space: " -a instance
+
+# Prompt user for url or endpoint of remote database server
+echo "Enter the url/endpoint of your remote database server:"
+read hostname
+
+# Prompt user for root user of remote database server
+echo "Enter the username of your remote database root user:"
+read remotedbroot
+
+# Prompt user for password of remote database server
+echo "Enter the password for the root user of your remote database server:"
+read remotedbpwd
+
+# Prompt user for IP address of client server. If using AWS EC2 instances, enter the private IP
+echo "Enter the IP address of your client server (i.e. the server runnning the Koha web application):"
+read clientipaddr
+
+# Store array in variables
+hn=""
+rdr=""
+rdp=""
+cip=""
+
+# Begin instance creation loop
+for instancename in "${instance[@]}"; do
+hn+=" ${hostname}"
+rdr+=" ${remotedbroot}"
+rdp+=" ${remotedbpwd}"
+cip+=" ${clientipaddr}"
+
+#Create koha-common.cnf
+echo "
+[client]
+host     = ${hostname}
+user     = ${remotedbroot}
+password = ${remotedbpwd}
+socket   = /var/run/mysqld/mysqld.sock
+[mysql_upgrade]
+host     = ${hostname}
+user     = ${remotedbroot}
+password = ${remotedbpwd}
+socket   = /var/run/mysqld/mysqld.sock
+" | sudo tee /etc/mysql/koha-common.cnf >/dev/null 
+
+# koha-plack requires the following Apache modules
+sudo a2enmod headers proxy_http
+sudo a2enmod cgi
+sudo a2enmod deflate
+
+# Prompt user to enter their OPAC domain/subdomain
+echo "Enter the OPAC page URL for $instancename  (Skip http:// or https://):"
+read  opacurl
+
+# Prompt user to enter their Staff URL
+echo "Enter the Staff page URL for $instancename  (Skip http:// or https://):"
+read  staffurl
+
+# Create the instance
+sudo koha-create --create-db $instancename
+
+# Generate a password for the remote koha database
+remotekohadbpwd=$(sudo xmlstarlet sel -t -v 'yazgfs/config/pass' /etc/koha/sites/$instancename/koha-conf.xml)
+
+#create Koha database and user on remote server. Works on MariaDB. May need to be modified for a MySQL server.
+mysql -h ${hostname} -u ${remotedbroot} -p${remotedbpwd} -e "
+CREATE USER 'koha_${instancename}'@'${clientipaddr}' IDENTIFIED BY '${remotekohadbpwd}';
+GRANT ALL PRIVILEGES ON koha_${instancename}.* to 'koha_${instancename}'@'${clientipaddr}'; 
+FLUSH PRIVILEGES;"
+
+# If using Amazon Aurora MySQL, comment the MySQL script above and uncomment the following lines.
+#mysql -h ${hostname} -u ${remotedbroot} -p${remotedbpwd} -e "
+#CREATE USER 'koha_${instancename}'@'${clientipaddr}' IDENTIFIED BY '${remotekohadbpwd}';
+#GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, INDEX, ALTER, CREATE TEMPORARY TABLES,
+#CREATE VIEW, EVENT, TRIGGER, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, EXECUTE ON koha_${instancename}.* to 'koha_${instancename}'@'${clientipaddr}'; FLUSH PRIVILEGES;"
+
+## Configure koha-conf.xml ##
+koha_conf=/etc/koha/sites/$instancename/koha-conf.xml
+sudo sed -i "/<pass>*/c\<pass>$remotekohadbpwd</pass>" $koha_conf
+
+# Enable your Koha instance config
+sudo a2ensite $instancename
+
+# Replace ServerName with  OPAC url above
+sudo sed -i "/ServerName $instancename.myDNSname.org/c\   ServerName $opacurl" /etc/apache2/sites-enabled/$instancename.conf
+
+# Replace ServerName with  OPAC url above
+sudo sed -i "/ServerName $instancename-intra.myDNSname.org/c\   ServerName $staffurl" /etc/apache2/sites-enabled/$instancename.conf
+
+# The following commands stop the Koha instance soon after they are created. I found this necessary when creating multiple instances in order to reduce CPU usage.
+# Enable Koha instance
+sudo koha-disable $instancename
+
+# Enable instance
+sudo koha-worker --stop $instancename
+
+# Start Zebra
+sudo koha-zebra --stop $instancename
+
+# Enable Plack
+sudo koha-plack --stop $instancename
+
+# End loop
+done
+
+# Enable and start  Koha instances
+for instancename in "${instance[@]}"; do
+# Enable instance
+sudo koha-worker --start $instancename
+
+# Start Zebra
+sudo koha-zebra --start $instancename
+
+# Enable Plack
+sudo koha-plack --enable $instancename
+sudo koha-plack --start $instancename
+done
+# Check Apache for configuration errors
+echo "If you come across any errors, check your instance Apache config at /etc/apache2/sites-enabled/$instancename."
+sudo apachectl configtest
+
+# Restart Apache
+sudo systemctl restart apache2
