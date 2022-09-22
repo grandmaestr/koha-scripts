@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# This script installs koha-common and  dependencies on a bare-bones Ubuntu server.
+# This script install Apache, MySQL (server), PHP on the same instance
 # I've tested this on Ubuntu Server 20.04LTS but it should work on other Debian distros. 
 # You will need to configure Apache config files (/etc/apache2/sites-enabled/)
 # You can copy and paste this script onto your server and make it executable by running "chmod a+x /path/to/file_name"
@@ -31,16 +31,14 @@ sudo systemctl restart apache2.service
 sudo apt -y install koha-common
 
 # Install  MariaDB or MySQL
-# sudo apt -y install mysql-server
-
-sudo apt -y install mysql-client
+ sudo apt -y install mysql-server
 
 # Secure MySQL. You will recieve a number of prompts. This will ask if you want to configure the VALIDATE PASSWORD PLUGIN. It is best to answer No.
 # Note: Enabling this feature is something of a judgment call.
 # If enabled, passwords which don’t match the specified criteria will be rejected by MySQL with an error.
 # This will cause issues if you use a weak password in conjunction with software which automatically configures MySQL user credentials, such as the Ubuntu packages for phpMyAdmin.
 # It is safe to leave validation disabled, but you should always use strong, unique passwords for database credentials.
-# sudo mysql_secure_installation
+ sudo mysql_secure_installation
 
 # Install PHP. PHP is the component of your setup that will process code to display dynamic content.
 # It can run scripts, connect to your MySQL databases to get information, and hand the processed content over to your web server so that it can display the results to your visitors.
