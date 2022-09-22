@@ -23,10 +23,16 @@ sudo apt -y clean
 sudo apt -y install apache2
 sudo a2enmod headers proxy_http
 
+# Install apache2-dev to resolve apxs issue when installing perl modules
+sudo apt -y  install apache2-dev
+
 # Enable the Apache mod_rewrite modules. The following commands enable Apache to create the configuration files.
 sudo a2enmod rewrite
 sudo a2enmod cgi
 sudo systemctl restart apache2.service
+
+# Create symlink to resolve warning "Perl is configured to link against libgdbm, but libgdbm.so was not found."
+sudo ln  /usr/lib/x86_64-linux-gnu/libgdbm.so.6.0.0 /usr/lib/x86_64-linux-gnu/libgdbm.so
 
 # Download and install the latest Koha release
 sudo apt -y install koha-common
