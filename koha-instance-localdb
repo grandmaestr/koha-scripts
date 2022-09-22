@@ -43,10 +43,21 @@ sudo koha-create --create-db $instancename
 sudo a2ensite $instancename
 
 # Replace ServerName with  OPAC url above
-sudo sed -i "/ServerName $instancename.myDNSname.org/c\   ServerName $opacurl" /etc/apache2/sites-enabled/$instancename.conf
+
+if [[ -z ${string} ]]; 
+	then
+		echo "ServerName not specified, not setting"
+	else
+		sudo sed -i "/ServerName $instancename.myDNSname.org/c\   ServerName $opacurl" /etc/apache2/sites-enabled/$instancename.conf
+fi
 
 # Replace ServerName with  OPAC url above
-sudo sed -i "/ServerName $instancename-intra.myDNSname.org/c\   ServerName $staffurl" /etc/apache2/sites-enabled/$instancename.conf
+if [[ -z ${string} ]];
+	then
+	        echo "ServerName not specified, not setting"
+        else
+		sudo sed -i "/ServerName $instancename-intra.myDNSname.org/c\   ServerName $staffurl" /etc/apache2/sites-enabled/$instancename.conf
+fi
 
 # The following commands stop the Koha instance soon after they are created. I found this necessary when creating multiple instances in order to reduce CPU usage.
 # Enable Koha instance
@@ -66,7 +77,11 @@ done
 
 # Enable and start  Koha instances
 for instancename in "${instance[@]}"; do
+
 # Enable instance
+sudo koha-enable $instancename
+
+# Enable koha-worker
 sudo koha-worker --start $instancename
 
 # Start Zebra

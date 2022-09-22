@@ -120,6 +120,10 @@ done
 
 # Enable and start  Koha instances
 for instancename in "${instance[@]}"; do
+
+# Enable instance
+sudo koha-enable $instancename
+
 # Enable instance
 sudo koha-worker --start $instancename
 
