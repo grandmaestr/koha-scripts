@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # This script migrates your local koha databases to a remote database server.
-set -x
-set -e
+# set -x
+# set -e
 
 time=$(date +"%d_%m_%Y_%T")
 
