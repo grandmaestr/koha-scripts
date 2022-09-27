@@ -4,43 +4,45 @@
 set -x
 set -e
 
+time=$(date +"%d_%m_%Y_%T")
+
 # Enable and start  Koha instances
 for k in  $(koha-list);
 do 
 	sudo koha-mysql $k -Nse "
-		SELECT b.borrowernumber FROM borrowers b JOIN deletedborrowers db ON b.borrowernumber=db.borrowernumber;" | tr '\t' ',' > /tmp/$k-borrowers.txt
+		SELECT b.borrowernumber FROM borrowers b JOIN deletedborrowers db ON b.borrowernumber=db.borrowernumber;" | tr '\t' ',' > /tmp/$k-borrowers_$time.txt
         sudo koha-mysql $k -Nse "
-		SELECT b.biblionumber   FROM biblio b    JOIN deletedbiblio db    ON b.biblionumber=db.biblionumber;" | tr '\t' ',' > /tmp/$k-biblionumber.txt
+		SELECT b.biblionumber   FROM biblio b    JOIN deletedbiblio db    ON b.biblionumber=db.biblionumber;" | tr '\t' ',' > /tmp/$k-biblionumber_$time.txt
         sudo koha-mysql $k -Nse "
-		SELECT i.itemnumber     FROM items i     JOIN deleteditems di     ON i.itemnumber=di.itemnumber;" | tr '\t' ',' > /tmp/$k-itemnumber.txt
+		SELECT i.itemnumber     FROM items i     JOIN deleteditems di     ON i.itemnumber=di.itemnumber;" | tr '\t' ',' > /tmp/$k-itemnumber_$time.txt
         sudo koha-mysql $k -Nse "
-		SELECT i.issue_id       FROM issues i    JOIN old_issues oi       ON i.issue_id=oi.issue_id;" | tr '\t' ',' > /tmp/$k-issue_id.txt
+		SELECT i.issue_id       FROM issues i    JOIN old_issues oi       ON i.issue_id=oi.issue_id;" | tr '\t' ',' > /tmp/$k-issue_id_$time.txt
         sudo koha-mysql $k -Nse "
-		SELECT r.reserve_id     FROM reserves r  JOIN old_reserves o      ON r.reserve_id=o.reserve_id;" | tr '\t' ',' > /tmp/$k-reserve_id.txt
+		SELECT r.reserve_id     FROM reserves r  JOIN old_reserves o      ON r.reserve_id=o.reserve_id;" | tr '\t' ',' > /tmp/$k-reserve_id_$time.txt
 
 while read i; 
 do
         sudo koha-mysql $k -Nse "
 		DELETE FROM deletedborrowers WHERE borrowernumber IN ($i);"
-	done < /tmp/$k-borrowers.txt
+	done < /tmp/$k-borrowers_$time.txt
 while read i;
 do
         sudo koha-mysql $k -Nse "
 		DELETE FROM deletedbiblio WHERE biblionumber IN ($i);"
-	done < /tmp/$k-biblionumber.txt
+	done < /tmp/$k-biblionumber_$time.txt
 while read i;
 do
         sudo koha-mysql $k -Nse "
                 DELETE FROM deleteditems WHERE itemnumber IN ($i);"
-        done < /tmp/$k-itemnumber.txt
+        done < /tmp/$k-itemnumber_$time.txt
 while read i;
 do
         sudo koha-mysql $k -Nse "
                 DELETE FROM old_issues WHERE issue_id IN ($i);"
-        done < /tmp/$k-issue_id.txt
+        done < /tmp/$k-issue_id_$time.txt
 while read i;
 do
         sudo koha-mysql $k -Nse "
                 DELETE FROM old_reserves WHERE reserve_id  IN ($i);"
-        done  < /tmp/$k-reserve_id.txt
+        done  < /tmp/$k-reserve_id_$time.txt
 done
