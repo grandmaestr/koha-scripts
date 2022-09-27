@@ -1,0 +1,55 @@
+#!/bin/bash
+
+# This script install Apache, MySQL (server), PHP on the same instance
+# I've tested this on Ubuntu Server 20.04LTS but it should work on other Debian distros. 
+# You will need to configure Apache config files (/etc/apache2/sites-enabled/)
+# You can copy and paste this script onto your server and make it executable by running "chmod a+x /path/to/file_name"
+# To run the script, simply go to "/path/to/file_name" or if it's in your home directory, run "~/file_name" in the CLI.
+# This script is interactive, so you'll be prompted for input at various stages.
+# You can modify or use this script however you like but I'd really appreciate it if you give me a shout out or attribution if you post it elsewhere :)
+
+# Add a Koha Community Repository
+echo deb http://debian.koha-community.org/koha stable main | sudo tee /etc/apt/sources.list.d/koha.list
+
+# Add the key in gpg.asc to your APT trusted keys to avoid warning messages on installation:
+wget -O- https://debian.koha-community.org/koha/gpg.asc | sudo apt-key add -
+
+# Update and upgrade Ubuntu
+sudo apt -y update 
+sudo apt -y upgrade
+sudo apt -y clean
+
+# Install Apache web server
+sudo apt -y install apache2
+sudo a2enmod headers proxy_http
+
+# Enable the Apache mod_rewrite modules. The following commands enable Apache to create the configuration files.
+sudo a2enmod rewrite
+sudo a2enmod cgi
+sudo systemctl restart apache2.service
+
+# Download and install the latest Koha release
+sudo apt -y install koha-common
+
+# Install  MariaDB or MySQL
+ sudo apt -y install mysql-server
+
+# Secure MySQL. 
+# It is safe to leave validation disabled, but you should always use strong, unique passwords for database credentials.
+./mysql_secure_installation
+
+# Install PHP. PHP is the component of your setup that will process code to display dynamic content.
+# It can run scripts, connect to your MySQL databases to get information, and hand the processed content over to your web server so that it can display the results to your visitors.
+sudo apt -y install php libapache2-mod-php php-mysql
+
+# Install awscli 
+sudo apt -y install awscli
+
+sudo apt -y install mlocate
+
+# Create koha-common.cnf 
+sudo touch /etc/mysql/koha-common.cnf
+sudo chown root:root /etc/mysql/koha-common.cnf
+ 
+# Restart Apache
+sudo systemctl restart apache2.service

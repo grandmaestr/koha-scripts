@@ -1,0 +1,16 @@
+#!/bin/bash
+# Make sure that NOBODY can access the server without a password
+sudo mysql -e "ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password by '$dbpass';"
+# Kill the anonymous users
+sudo mysql -e "DROP USER ''@'localhost';"
+# Because our hostname varies we'll use some Bash magic here.
+sudo mysql -e "DROP USER ''@'$(hostname);'"
+# Disable remote root login
+sudo mysql -e "DELETE FROM mysql.user WHERE User='root' AND Host NOT IN ('localhost', '127.0.0.1', '::1');"
+# Kill off the demo database
+sudo mysql -e "DROP DATABASE test;"
+# Uninstall validate_password plugin
+sudo mysql -e "UNINSTALL COMPONENT 'file://component_validate_password';"
+# Make our changes take effect
+sudo mysql -e "FLUSH PRIVILEGES"
+# Any subsequent tries to run queries this way will get access denied because lack of usr/pwd params
