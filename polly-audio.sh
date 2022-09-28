@@ -8,12 +8,18 @@
 
 set -x
 set -e
-# Read columns from csv file
+# Prompt user for the save directory path
 read -p "Enter the full path where you want to save your files, without the trailing slash (/path/to/directory): " outputdir
+
+# Prompt the user for the csv file path
+printf "The csv file must have column titles. The default used in this script are: \n preference - this is the category for each audio file. \n filename - this is the file name for the audio output. \n description - this is the text from which the audio will be created. \n"
+
+read -p "Enter the full path to the csv file: " csvfile
 
 # Create output directory if it does not exist
 mkdir -p $outputdir
 
+# Read columns from csv file
 while IFS="," read -r preference filename description
 do
 
@@ -29,5 +35,5 @@ else
 	tts /tmp/$filename.txt $filename --voice Amy --language en-GB --engine neural
 	cd ../../
 fi
-done < koha-howto-aws-polly.csv
+done < $csvfile
 
