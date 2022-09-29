@@ -6,8 +6,8 @@
 # Install using sudo npm install tts-cli -g
 # See https://github.com/eheikes/tts/tree/master/packages/tts-cli for more info#
 
-set -x
-set -e
+# set -x
+# set -e
 # Prompt user for the save directory path
 read -p "Enter the full path where you want to save your files, without the trailing slash (/path/to/directory): " outputdir
 
@@ -20,20 +20,17 @@ read -p "Enter the full path to the csv file: " csvfile
 mkdir -p $outputdir
 
 # Read columns from csv file
-while IFS="," read -r preference filename description
+while IFS="," read -r Preference Filename Description
 do
 
 # Check if mp3 file already exists. Run if it does not.
-if test -f "$outputdir/$filename"; then
-	echo "$filename already exists"
-else
+#if test -f "$outputdir/$Preference/$Filename.mp3"; then
+#	echo "$Filename already exists"
+#else
 	# Make the preference directory if it doesn't exist
-        cd $outputdir
-	mkdir -p $preference
-	cd $preference
-	echo "$description" > /tmp/$filename.txt
-	tts /tmp/$filename.txt $filename --voice Amy --language en-GB --engine neural
-	cd ../../
-fi
+	mkdir -p $outputdir/$Preference
+	echo "$Description" > /tmp/$Filename.txt
+	tts /tmp/$Filename.txt $outputdir/$Preference/$Filename.mp3 --voice Amy --language en-GB --engine neural
+#fi
 done < $csvfile
 
