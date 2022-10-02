@@ -1,0 +1,18 @@
+#!/bin/bash
+
+# Simple script to download files from a list of urls
+
+# Set flags, recieve arguments
+while getopts u:p: flag
+do
+	case "${flag}" in
+		u) url=${OPTARG};;
+		p) path=${OPTARG};;
+	esac
+done
+
+# Create dir if not exist
+mkdir -p $path
+while read i; do
+	wget $i -P $path;
+done < $url
