@@ -8,12 +8,24 @@
 
 # set -x
 # set -e
+# Simple script to download files from a list of urls
+
+# Set flags, recieve arguments
+while getopts d:f: flag
+do
+        case "${flag}" in
+                d) outputdir=${OPTARG};;
+                f) csvfile=${OPTARG};;
+	esac
+done
+
+
 # Prompt user for the save directory path
-read -p "Enter the full path where you want to save your files, without the trailing slash (/path/to/directory): " outputdir
+#read -p "Enter the full path where you want to save your files, without the trailing slash (/path/to/directory): " outputdir
 
 # Prompt the user for the csv file path
-printf "The csv file must have column titles. The default used in this script are: \n preference - this is the category for each audio file. \n filename - this is the file name for the audio output. \n description - this is the text from which the audio will be created. \n"
-read -p "Enter the full path to the csv file: " csvfile
+#printf "The csv file must have column titles. The default used in this script are: \n preference - this is the category for each audio file. \n filename - this is the file name for the audio output. \n description - this is the text from which the audio will be created. \n"
+#read -p "Enter the full path to the csv file: " csvfile
 
 # Prompt for overwrite 
 read -p "Do you want to overwrite the existing files? (y/n):  " response
