@@ -1,25 +1,107 @@
 #!/bin/bash
-# This script 'activates' your Koha instance i.e. starts Plack, Zebra etc.
+# ------------------------------------------------------------------
+# Author: Lennon Mazonde
+# Title: Koha-Activate
+# Description: This script activates each koha instance using the instanceid (name)
+# ------------------------------------------------------------------
+
+# Script version
+VERSION=0.1.0
+# Script subject
+SUBJECT=koha-activate
+# Set the name of the script to variable
+SCRIPT_NAME="$(basename ${0})"
+
+# ------Help--------------------------------------------------------
+Help(){
+    # Display Help
+    cat <<EOF
+        Usage: $SCRIPT_NAME -ihv args
+
+        Options:
+        i - instanceid. The name of the koha instance. One instance id per option.
+        h - help. Print this help.
+        v - version. Print the script version.
+
+        Example:
+        To activate a single instance called "library", run:
+            $SCRIPT_NAME -i library
+        To activate multiple instances, run
+                $SCRIPT_NAME -i library1 -i library2 ...
+EOF
+}
+# --- Options processing -------------------------------------------
+if [ $# == 0 ] ; then
+    Help
+    exit 1;
+fi
+
+while getopts ":i:vh" optname; do
+    case "$optname" in
+      v)
+        echo "Version $VERSION"
+        exit 0;
+        ;;
+      i)  
+        instanceid+=("$OPTARG")
+        ;;
+      h)
+        Help
+        exit 0;
+        ;;
+      \?)
+        echo "Unknown option $OPTARG"
+        Help
+        exit 0;
+        ;;
+      :)
+        echo "No argument value for option $OPTARG"
+        exit 0;
+        ;;
+      *)
+        echo "Unknown error while processing options"
+        Help
+        exit 0;
+        ;;
+    esac
+  done
+
+shift $(($OPTIND - 1))
+
+param1=$1
+param2=$2
+
+# --- Locks -------------------------------------------------------
+LOCK_FILE=/tmp/$SUBJECT.lock
+if [ -f "$LOCK_FILE" ]; then
+   echo "Script is already running"
+   exit
+fi
+
+trap "rm -f $LOCK_FILE" EXIT
+touch $LOCK_FILE
+
+# --- Body --------------------------------------------------------
+
+
+# Print the installed Koha instances
 echo "You have the following Koha instances running on this server:"
 echo $(koha-list)
 printf "\n"
 
-# Prompt the user for the name of your koha instance(s). Input something simple and easily distinguishable from other instances.
-read -p "Enter the name of each  Koha instance you want activate separated by a space: " -a instance
+for val in "${instanceid[@]}"; do
+    echo " Activating the Koha instance $val"
 
-# Enable and start  Koha instances
-for instancename in "${instance[@]}"; do
+    # Enable your Koha instance config
+    sudo a2ensite $instancename
 
-# Enable your Koha instance config
-sudo a2ensite $instancename
+    # Enable instance
+    sudo koha-worker --start $instancename
 
-# Enable instance
-sudo koha-worker --start $instancename
+    # Start Zebra
+    sudo koha-zebra --start $instancename
 
-# Start Zebra
-sudo koha-zebra --start $instancename
-
-# Enable Plack
-sudo koha-plack --enable $instancename
-sudo koha-plack --start $instancename
+    # Enable Plack
+    sudo koha-plack --enable $instancename
+    sudo koha-plack --start $instancename
 done
