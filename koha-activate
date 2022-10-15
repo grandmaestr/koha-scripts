@@ -55,7 +55,7 @@ while getopts ":i:vh" optname; do
         exit 0;
         ;;
       :)
-        echo "No argument value for option $OPTARG"
+        echo "Error: you must provide at least one instance name for option -$OPTARG"
         exit 0;
         ;;
       *)
