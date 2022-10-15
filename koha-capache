@@ -31,9 +31,9 @@ Help(){
         v - version. Print the script version.
 
         Example:
-        To activate a single instance called "library", run:
+        To define a new staff or OPAC url for a single instance called "library", run:
             $SCRIPT_NAME -i library
-        To activate multiple instances, run
+        For multiple instances, run
                 $SCRIPT_NAME -i library1 -i library2 ...
 EOF
 }
@@ -106,7 +106,7 @@ for val in "${instanceid[@]}"; do
 		# Strip out leading http(s):// and set to variable
 		staffurl=$(echo "$staffdomain" | sed "s|.*://||; s|/.*||" )
 		staff+=" ${staffurl}"
-		
+
 		# Strip out leading http(s):// and set to variable
 		opacurl=$(echo "$opacdomain" | sed "s|.*://||; s|/.*||" )
 		opac+=" ${opacurl}"
@@ -118,7 +118,7 @@ for val in "${instanceid[@]}"; do
 		sudo sed -i  "0,/ServerName $staffurl/s//ServerName $opacurl/" /etc/apache2/sites-enabled/$val.conf
 
 		# Print new conf file
-		sudo less /etc/apache2/sites-enabled/$val.conf
+		sudo cat /etc/apache2/sites-enabled/$val.conf
 	done
 
 done
