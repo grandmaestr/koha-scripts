@@ -78,15 +78,28 @@ param2=$2
 
 # --- Backup Original Config -------------------------------------
 Backup(){
-	# copy koha-conf.xml to tmp in case you need to restore
-	config_backup=/tmp/$val.$(date +%d-%m-%Y-%Hh%Mm%Ss).koha-conf.xml
-	sudo cp $configpath $config_backup
-}
+	# Backup 
+        sudo koha-run-backups
 
 # --- Restore Original Config -------------------------------------
 Restore(){
-	# restore original config from backup
-	sudo cp $config_backup $configpath
+	# Stop and remove Koha instance
+        sudo koha-worker --stop $val
+        sudo koha-plack --stop $val
+        sudo koha-zebra --stop $val
+        sudo koha-remove $val
+        sudo deluser demo-koha $val
+        sudo rm /etc/apache2/sites-enabled/demo.conf $val
+        sudo systemctl restart apache2.service $val
+
+        # Set path to backup files
+        sqldump=$(sudo ls /var/spool/koha/$val/*.sql.gz -t | head -n1)
+        configdump=$(sudo ls /var/spool/koha/$val/*.tar.gz -t | head -n1)
+        sudo koha-restore $sqldump $configdump
+        sudo koha-worker --start $val
+        sudo koha-plack --enable $val
+        sudo koha-plack --start $val
+        sudo koha-zebra --start $val
 }
 
 # --- Locks -------------------------------------------------------
@@ -100,49 +113,89 @@ trap "rm -f $LOCK_FILE" EXIT
 touch $LOCK_FILE
 
 # --- Body --------------------------------------------------------
-# This script migrates your local koha databases to a remote database server.
-# set -x
-# set -e
 
 time=$(date +"%d_%m_%Y_%T")
-
 # Enable and start  Koha instances
-for k in  $(koha-list);
-do 
-	sudo koha-mysql $k -Nse "
-		SELECT b.borrowernumber FROM borrowers b JOIN deletedborrowers db ON b.borrowernumber=db.borrowernumber;" | tr '\t' ',' > /tmp/$k-borrowers_$time.txt
-        sudo koha-mysql $k -Nse "
-		SELECT b.biblionumber   FROM biblio b    JOIN deletedbiblio db    ON b.biblionumber=db.biblionumber;" | tr '\t' ',' > /tmp/$k-biblionumber_$time.txt
-        sudo koha-mysql $k -Nse "
-		SELECT i.itemnumber     FROM items i     JOIN deleteditems di     ON i.itemnumber=di.itemnumber;" | tr '\t' ',' > /tmp/$k-itemnumber_$time.txt
-        sudo koha-mysql $k -Nse "
-		SELECT i.issue_id       FROM issues i    JOIN old_issues oi       ON i.issue_id=oi.issue_id;" | tr '\t' ',' > /tmp/$k-issue_id_$time.txt
-        sudo koha-mysql $k -Nse "
-		SELECT r.reserve_id     FROM reserves r  JOIN old_reserves o      ON r.reserve_id=o.reserve_id;" | tr '\t' ',' > /tmp/$k-reserve_id_$time.txt
+for val in "${instanceid[@]}"; do 
+	while true; do
+		read -p "Repair the database for $val?:  " response 
 
-while read i; 
-do
-        sudo koha-mysql $k -Nse "
-		DELETE FROM deletedborrowers WHERE borrowernumber IN ($i);"
-	done < /tmp/$k-borrowers_$time.txt
-while read i;
-do
-        sudo koha-mysql $k -Nse "
-		DELETE FROM deletedbiblio WHERE biblionumber IN ($i);"
-	done < /tmp/$k-biblionumber_$time.txt
-while read i;
-do
-        sudo koha-mysql $k -Nse "
-                DELETE FROM deleteditems WHERE itemnumber IN ($i);"
-        done < /tmp/$k-itemnumber_$time.txt
-while read i;
-do
-        sudo koha-mysql $k -Nse "
-                DELETE FROM old_issues WHERE issue_id IN ($i);"
-        done < /tmp/$k-issue_id_$time.txt
-while read i;
-do
-        sudo koha-mysql $k -Nse "
-                DELETE FROM old_reserves WHERE reserve_id  IN ($i);"
-        done  < /tmp/$k-reserve_id_$time.txt
+		case $response in
+                [yY][eE][sS]|[yY] )
+                        # Backup database
+                        Backup
+
+                        # Repair duplicate values
+
+                        sudo koha-mysql $k -Nse "
+                                SELECT b.borrowernumber FROM borrowers b JOIN deletedborrowers db ON b.borrowernumber=db.borrowernumber;" | tr '\t' ',' > /tmp/$k-borrowers_$time.txt
+                        sudo koha-mysql $k -Nse "
+                                SELECT b.biblionumber   FROM biblio b    JOIN deletedbiblio db    ON b.biblionumber=db.biblionumber;" | tr '\t' ',' > /tmp/$k-biblionumber_$time.txt
+                        sudo koha-mysql $k -Nse "
+                                SELECT i.itemnumber     FROM items i     JOIN deleteditems di     ON i.itemnumber=di.itemnumber;" | tr '\t' ',' > /tmp/$k-itemnumber_$time.txt
+                        sudo koha-mysql $k -Nse "
+                                SELECT i.issue_id       FROM issues i    JOIN old_issues oi       ON i.issue_id=oi.issue_id;" | tr '\t' ',' > /tmp/$k-issue_id_$time.txt
+                        sudo koha-mysql $k -Nse "
+                                SELECT r.reserve_id     FROM reserves r  JOIN old_reserves o      ON r.reserve_id=o.reserve_id;" | tr '\t' ',' > /tmp/$k-reserve_id_$time.txt
+
+                        while read i; 
+                        do
+                                sudo koha-mysql $k -Nse "
+                                        DELETE FROM deletedborrowers WHERE borrowernumber IN ($i);"
+                                done < /tmp/$k-borrowers_$time.txt
+                        while read i;
+                        do
+                                sudo koha-mysql $k -Nse "
+                                        DELETE FROM deletedbiblio WHERE biblionumber IN ($i);"
+                                done < /tmp/$k-biblionumber_$time.txt
+                        while read i;
+                        do
+                                sudo koha-mysql $k -Nse "
+                                        DELETE FROM deleteditems WHERE itemnumber IN ($i);"
+                                done < /tmp/$k-itemnumber_$time.txt
+                        while read i;
+                        do
+                                sudo koha-mysql $k -Nse "
+                                        DELETE FROM old_issues WHERE issue_id IN ($i);"
+                                done < /tmp/$k-issue_id_$time.txt
+                        while read i;
+                        do
+                                sudo koha-mysql $k -Nse "
+                                        DELETE FROM old_reserves WHERE reserve_id  IN ($i);"
+                                done  < /tmp/$k-reserve_id_$time.txt
+
+                        printf "Database repair for $val complete. \n"
+                        sleep 1s
+			break;;
+			
+                [nN][oO]|[nN] ) echo No changes have been made;
+                        break;;
+
+                [qQ][uU][iI][tT] | [qQ] )
+                        exit;;
+
+                * ) echo Invalid response.Try again;;
+                esac
+        done
+        
+        # Prompt to check and restore the original database and configuration files
+        printf "The database repair is complete. Check if $val is running correctly. \n If anything is amiss and you need to restore your database and config files to the original state, \n answer y(es) to the next prompt.\n"
+        while true; do
+                read -p "Restore database and configuration files?" response 
+                case $response in
+                        [yY][eE][sS]|[yY] )
+                                Restore;
+                                printf "The original database and configuration has been restored. \n";
+                                break;;
+                        
+                        [nN][oO]|[nN] ) 
+                                printf "Changes kept \n";
+                                break;;
+
+                        [qQ][uU][iI][tT] | [qQ] )
+                                exit;;
+
+                        * ) echo Invalid response.Try again;;
+                esac
+        done
 done
