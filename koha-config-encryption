@@ -111,7 +111,7 @@ for val in "${instanceid[@]}"; do
 	if [ $(sudo xmlstarlet sel -t -v "count(yazgfs/config/encryption_key)" $configpath) -eq "0" ];
 	then
 
-		printf "Updating koha-conf.xml..."
+		printf "Updating koha-conf.xml... \n"
 		sleep 1s
 
 		# Backup the original config file
@@ -123,7 +123,7 @@ for val in "${instanceid[@]}"; do
 		sudo xmlstarlet ed -L -P -s "/yazgfs/config" -t elem -n encryption_key -v $keyvalue $configpath 	
 
 		# Prompt to restore original config
-		printf "The koha-conf.xml file for $val has been updated."
+		printf "The koha-conf.xml file for $val has been updated. \n"
 		while true; do
 			read -p "Restore original file? Answering yes will revert to original config file: " response 
 			case $response in
@@ -133,7 +133,7 @@ for val in "${instanceid[@]}"; do
 					break;;
 				
 				[nN][oO]|[nN] ) 
-					printf "Changes kept";
+					printf "Changes kept \n";
 					break;;
 
 				[qQ][uU][iI][tT] | [qQ] )
@@ -143,10 +143,37 @@ for val in "${instanceid[@]}"; do
 			esac
 		done
 	else
-		printf 'Encryption_key already set'
+	
+		while true; do
+			read -p "Encryption_key exists. Do you want to update it?: " response 
+			case $response in
+
+				[yY][eE][sS]|[yY] )
+					printf "Updating koha-conf.xml... \n"
+					sleep 1s
+
+					# Backup the original config file
+					Backup
+
+					# generate encryption key and set to variable
+					keyvalue=$(pwgen 32 -1)	
+
+					# Replace encryption key with new value
+					sudo xmlstarlet ed -L -u "/yazgfs/config/encryption_key" -v $keyvalue $configpath 
+					printf "The encryption key has been updated.\n";
+					break;;
+
+				[nN][oO]|[nN] ) 
+					printf "No changes have been made. \n";
+					break;;
+
+				[qQ][uU][iI][tT] | [qQ] )
+					exit;;
+
+				* ) echo Invalid response.Try again;;
+			esac
+			done
 	fi
+	printf "################################################################# \n"
+	printf "If you encountered problems, you can find timestamped backup config files here: $config_backup. Use these to restore your config file\n"
 done
-
-
-printf "\n #################################################################"
-printf "If you encountered problems run koha-config-encryption-restore immediately after execution of koha-config-encryption"
