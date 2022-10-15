@@ -108,7 +108,7 @@ for val in "${instanceid[@]}"; do
 	configpath=/etc/koha/sites/$val/koha-conf.xml
 	
 	# check if encryption key element exists
-	if [ $(xmlstarlet sel -t -v "count(yazgfs/config/encryption_key)" $configpath) -eq "0" ];
+	if [ $(sudo xmlstarlet sel -t -v "count(yazgfs/config/encryption_key)" $configpath) -eq "0" ];
 	then
 
 		# Backup the original config file
@@ -118,7 +118,7 @@ for val in "${instanceid[@]}"; do
 		keyvalue=$(pwgen 32 -1)	
 		
 		# if not existing, insert element
-		xmlstarlet ed -L -P -s "/yazgfs/config" -t elem -n encryption_key -v $keyvalue $configpath 	
+		sudo xmlstarlet ed -L -P -s "/yazgfs/config" -t elem -n encryption_key -v $keyvalue $configpath 	
 
 		# Prompt to restore original config
 		printf "The koha-conf.xml file for $val has been updated."
