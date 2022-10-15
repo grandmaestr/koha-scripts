@@ -95,7 +95,7 @@ for val in "${instanceid[@]}"; do
 	staff=""
 
 	while
-		read -p "Update $val.conf? (y/n): " response && [[ $response =~ ^([yY][eE][sS]|[yY])$ ]] 
+		read -p "Update /etc/apache2/sites-enabled/$val.conf? (y/n): " response && [[ $response =~ ^([yY][eE][sS]|[yY])$ ]] 
 	do
 		# Prompt user to enter their Staff URL
 		read -p "New Staff/admin page url $val (Leave out http:// or https://) : " staffdomain
@@ -118,7 +118,10 @@ for val in "${instanceid[@]}"; do
 		sudo sed -i  "0,/ServerName $staffurl/s//ServerName $opacurl/" /etc/apache2/sites-enabled/$val.conf
 
 		# Print new conf file
+		printf '-----------------------Begin Config--------------------------------- \n'
 		sudo cat /etc/apache2/sites-enabled/$val.conf
+		printf '-----------------------End Config----------------------------------- \n'
+
 	done
 
 done
