@@ -1,9 +1,0 @@
-#!/bin/bash
-# This script retrieves all the passwords for all the installed Koha instances.
-
-printf "$(koha-list)\n" > ~/kohalist.txt
-#echo "done"
-cat ~/kohalist.txt | while read p
- do
-        sudo xmlstarlet sel -t -v 'yazgfs/config/pass' /etc/koha/sites/$p/koha-conf.xml; echo  ; echo $p
-done < ~/kohalist.txt
