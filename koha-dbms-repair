@@ -80,7 +80,7 @@ param2=$2
 Backup(){
 	# Backup 
         sudo koha-run-backups
-
+}
 # --- Restore Original Config -------------------------------------
 Restore(){
 	# Stop and remove Koha instance
