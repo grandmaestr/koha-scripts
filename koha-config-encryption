@@ -111,9 +111,11 @@ for val in "${instanceid[@]}"; do
 	if [ $(sudo xmlstarlet sel -t -v "count(yazgfs/config/encryption_key)" $configpath) -eq "0" ];
 	then
 
+		printf "Updating koha-conf.xml..."
+		sleep 1s
+
 		# Backup the original config file
 		Backup
-
 		# generate encryption key and set to variable
 		keyvalue=$(pwgen 32 -1)	
 		
@@ -146,5 +148,5 @@ for val in "${instanceid[@]}"; do
 done
 
 
-echo "#################################################################"
-echo "If you encountered problems run koha-config-encryption-restore immediately after execution of koha-config-encryption"
+printf "\n #################################################################"
+printf "If you encountered problems run koha-config-encryption-restore immediately after execution of koha-config-encryption"
