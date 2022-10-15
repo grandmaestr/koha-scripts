@@ -81,7 +81,7 @@ param2=$2
 # --- Backup Original Config -------------------------------------
 Backup(){
 	# copy koha-conf.xml to tmp in case you need to restore
-	config_backup=/tmp/$val.$(date +%d-%m-%Y-%Hh%Mm%Ss).koha-conf.xml
+	config_backup=/tmp/$val.conf.bkp-$(date +%d-%m-%Y-%Hh%Mm%Ss)
 	sudo cp $configpath $config_backup
 }
 

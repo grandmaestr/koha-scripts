@@ -1,5 +1,105 @@
 #!/bin/bash
+# ------------------------------------------------------------------
+# Author: Lennon Mazonde
+# GitHub: @grandmaestr
+# Title: koha-dbms-repair
+# Description: 
+#       This script repairs tables with duplicate values as documented here https://wiki.koha-community.org/wiki/DBMS_auto_increment_fix.
+# 	You can copy and paste this script onto your server and make it executable by running "chmod a+x /path/to/file_name"
+# 	To run the script, simply go to "/path/to/file_name" or if it's in your home directory, run "file_name"  in the CLI.
+# 	This script is interactive, so you'll be prompted for input at various stages.
+# 	You can modify or use this script however you like but I'd really appreciate it if you give me a shout out or attribution if you post it elsewhere :)
 
+# ------------------------------------------------------------------
+
+# Script version
+VERSION=0.1.0
+# Set the name of the script to variable
+SCRIPT_NAME="$(basename ${0})"
+
+# ------Help--------------------------------------------------------
+Help(){
+    # Display Help
+    cat <<EOF
+        Usage: $SCRIPT_NAME -ihv args
+
+        Options:
+        i - instanceid. The name of the koha instance. One instance id per option.
+        h - help. Print this help.
+        v - version. Print the script version.
+
+        Example:
+        To define a new staff or OPAC url for a single instance called "library", run:
+            $SCRIPT_NAME -i library
+        For multiple instances, run
+                $SCRIPT_NAME -i library1 -i library2 ...
+EOF
+}
+# --- Options processing -------------------------------------------
+if [ $# == 0 ] ; then
+    Help
+    exit 1;
+fi
+
+while getopts ":i:vh" optname; do
+    case "$optname" in
+      v)
+        echo "Version $VERSION"
+        exit 0;
+        ;;
+      i)  
+        instanceid+=("$OPTARG")
+        ;;
+      h)
+        Help
+        exit 0;
+        ;;
+      \?)
+        echo "Unknown option $OPTARG"
+        Help
+        exit 0;
+        ;;
+      :)
+        echo "Error: you must provide at least one instance name for option -$OPTARG"
+        exit 0;
+        ;;
+      *)
+        echo "Unknown error while processing options"
+        Help
+        exit 0;
+        ;;
+    esac
+  done
+
+shift $(($OPTIND - 1))
+
+param1=$1
+param2=$2
+
+# --- Backup Original Config -------------------------------------
+Backup(){
+	# copy koha-conf.xml to tmp in case you need to restore
+	config_backup=/tmp/$val.$(date +%d-%m-%Y-%Hh%Mm%Ss).koha-conf.xml
+	sudo cp $configpath $config_backup
+}
+
+# --- Restore Original Config -------------------------------------
+Restore(){
+	# restore original config from backup
+	sudo cp $config_backup $configpath
+}
+
+# --- Locks -------------------------------------------------------
+LOCK_FILE=/tmp/$SUBJECT.lock
+if [ -f "$LOCK_FILE" ]; then
+   echo "Script is already running"
+   exit
+fi
+
+trap "rm -f $LOCK_FILE" EXIT
+touch $LOCK_FILE
+
+# --- Body --------------------------------------------------------
 # This script migrates your local koha databases to a remote database server.
 # set -x
 # set -e
