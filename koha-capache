@@ -162,9 +162,7 @@ for val in "${instanceid[@]}"; do
 
 							* ) echo Invalid response.Try again;;
 						esac
-					done
-				
-				
+					done	
 				break;;
 			
             [nN][oO]|[nN] ) echo No changes have been made;
