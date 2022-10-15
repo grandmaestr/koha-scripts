@@ -91,36 +91,50 @@ touch $LOCK_FILE
 # --- Body --------------------------------------------------------
 
 for val in "${instanceid[@]}"; do
+	# Set initial variables to null
 	opac=""
 	staff=""
 
-	while
-		read -p "Update /etc/apache2/sites-enabled/$val.conf? (y/n): " response && [[ $response =~ ^([yY][eE][sS]|[yY])$ ]] 
-	do
-		# Prompt user to enter their Staff URL
-		read -p "New Staff/admin page url $val (Leave out http:// or https://) : " staffdomain
+	while true; do
+		read -p "Update /etc/apache2/sites-enabled/$val.conf? (yes/no/quit): " response 
 		
-		# Prompt user to enter their OPAC domain/subdomain
-		read -p "New OPAC url for $val (Leave out http:// or https://) : " opacdomain
-		
-		# Strip out leading http(s):// and set to variable
-		staffurl=$(echo "$staffdomain" | sed "s|.*://||; s|/.*||" )
-		staff+=" ${staffurl}"
+		case $response in
+            [yY][eE][sS]|[yY] )
 
-		# Strip out leading http(s):// and set to variable
-		opacurl=$(echo "$opacdomain" | sed "s|.*://||; s|/.*||" )
-		opac+=" ${opacurl}"
+				# Prompt user to enter their Staff URL
+				read -p "New Staff/admin page url $val (Leave out http:// or https://) : " staffdomain
+				
+				# Prompt user to enter their OPAC domain/subdomain
+				read -p "New OPAC url for $val (Leave out http:// or https://) : " opacdomain
+				
+				# Strip out leading http(s):// and set to variable
+				staffurl=$(echo "$staffdomain" | sed "s|.*://||; s|/.*||" )
+				staff+=" ${staffurl}"
 
-		# Replace ServerName with  Staff url 
-		sudo sed  -i "/ServerName*/c\   ServerName $staffurl" /etc/apache2/sites-enabled/$val.conf
+				# Strip out leading http(s):// and set to variable
+				opacurl=$(echo "$opacdomain" | sed "s|.*://||; s|/.*||" )
+				opac+=" ${opacurl}"
 
-		# Replace *ServerName with  OPAC url 
-		sudo sed -i  "0,/ServerName $staffurl/s//ServerName $opacurl/" /etc/apache2/sites-enabled/$val.conf
+				# Replace ServerName with  Staff url 
+				sudo sed  -i "/ServerName*/c\   ServerName $staffurl" /etc/apache2/sites-enabled/$val.conf
 
-		# Print new conf file
-		printf '-----------------------Begin Config--------------------------------- \n'
-		sudo cat /etc/apache2/sites-enabled/$val.conf
-		printf '-----------------------End Config----------------------------------- \n'
+				# Replace *ServerName with  OPAC url 
+				sudo sed -i  "0,/ServerName $staffurl/s//ServerName $opacurl/" /etc/apache2/sites-enabled/$val.conf
+
+				# Print new conf file
+				printf '##########################Begin Config########################## \n \n'
+				sudo cat /etc/apache2/sites-enabled/$val.conf
+				printf '##########################End Config############################ \n \n'
+				break;;
+
+            [nN][oO]|[nN] ) echo No changes have been made;
+                break;;
+
+			[qQ][uU][iI][tT] | [qQ] )
+				exit;;
+
+            * ) echo Invalid response.Try again;;
+              esac
 
 	done
 
