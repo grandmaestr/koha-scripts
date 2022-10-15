@@ -87,15 +87,15 @@ for val in "${instanceid[@]}"; do
     echo " Activating the Koha instance $val"
 
     # Enable your Koha instance config
-    sudo a2ensite $instancename
+    sudo a2ensite $val
 
     # Enable instance
-    sudo koha-worker --start $instancename
+    sudo koha-worker --start $val
 
     # Start Zebra
-    sudo koha-zebra --start $instancename
+    sudo koha-zebra --start $val
 
     # Enable Plack
-    sudo koha-plack --enable $instancename
-    sudo koha-plack --start $instancename
+    sudo koha-plack --enable $val
+    sudo koha-plack --start $val
 done
