@@ -4,7 +4,7 @@
 # GitHub: @grandmaestr
 # Title: koha-config-encryption
 # Description: 
-# 	This script configures a missing encryption_key element in koha-conf.xml
+# 	This script inserts a missing encryption_key element in koha-conf.xml or updates it if one already exists.
 # 	You can copy and paste this script onto your server and make it executable by running "chmod a+x /path/to/file_name"
 # 	To run the script, simply go to "/path/to/file_name" or if it's in your home directory, run "file_name"  in the CLI.
 # 	This script is interactive, so you'll be prompted for input at various stages.
@@ -175,5 +175,5 @@ for val in "${instanceid[@]}"; do
 			done
 	fi
 	printf "################################################################# \n"
-	printf "If you encountered problems, you can find timestamped backup config files here: $config_backup. Use these to restore your config file\n"
+	printf "If you encountered problems, you can find the timestamped backup config file here: $config_backup.\n"
 done
