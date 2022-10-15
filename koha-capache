@@ -120,7 +120,7 @@ for val in "${instanceid[@]}"; do
 
 				# Prompt user to enter their Staff URL
 				read -p "New Staff/admin page url $val (Leave out http:// or https://) : " staffdomain
-				
+
 				# Prompt user to enter their OPAC domain/subdomain
 				read -p "New OPAC url for $val (Leave out http:// or https://) : " opacdomain
 				
@@ -133,11 +133,21 @@ for val in "${instanceid[@]}"; do
 				opac+=" ${opacurl}"
 
 				# Replace ServerName with  Staff url 
+				if [[ -z ${string} ]]; 
+				then
+					echo "ServerName not specified, not setting"
+				else
 				sudo sed  -i "/ServerName*/c\   ServerName $staffurl" $configpath
+				fi 
 
 				# Replace *ServerName with  OPAC url 
+				if [[ -z ${string} ]]; 
+				then
+					echo "ServerName not specified, not setting"
+				else
 				sudo sed -i  "0,/ServerName $staffurl/s//ServerName $opacurl/" $configpath
-
+				fi
+				
 				# Print new conf file
 				printf '##########################Begin Config########################## \n \n'
 				sudo cat $configpath
