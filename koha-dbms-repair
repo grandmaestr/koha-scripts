@@ -127,42 +127,42 @@ for val in "${instanceid[@]}"; do
 
                         # Repair duplicate values
 
-                        sudo koha-mysql $k -Nse "
-                                SELECT b.borrowernumber FROM borrowers b JOIN deletedborrowers db ON b.borrowernumber=db.borrowernumber;" | tr '\t' ',' > /tmp/$k-borrowers_$time.txt
-                        sudo koha-mysql $k -Nse "
-                                SELECT b.biblionumber   FROM biblio b    JOIN deletedbiblio db    ON b.biblionumber=db.biblionumber;" | tr '\t' ',' > /tmp/$k-biblionumber_$time.txt
-                        sudo koha-mysql $k -Nse "
-                                SELECT i.itemnumber     FROM items i     JOIN deleteditems di     ON i.itemnumber=di.itemnumber;" | tr '\t' ',' > /tmp/$k-itemnumber_$time.txt
-                        sudo koha-mysql $k -Nse "
-                                SELECT i.issue_id       FROM issues i    JOIN old_issues oi       ON i.issue_id=oi.issue_id;" | tr '\t' ',' > /tmp/$k-issue_id_$time.txt
-                        sudo koha-mysql $k -Nse "
-                                SELECT r.reserve_id     FROM reserves r  JOIN old_reserves o      ON r.reserve_id=o.reserve_id;" | tr '\t' ',' > /tmp/$k-reserve_id_$time.txt
+                        sudo koha-mysql $val -Nse "
+                                SELECT b.borrowernumber FROM borrowers b JOIN deletedborrowers db ON b.borrowernumber=db.borrowernumber;" | tr '\t' ',' > /tmp/$val-borrowers_$time.txt
+                        sudo koha-mysql $val -Nse "
+                                SELECT b.biblionumber   FROM biblio b    JOIN deletedbiblio db    ON b.biblionumber=db.biblionumber;" | tr '\t' ',' > /tmp/$val-biblionumber_$time.txt
+                        sudo koha-mysql $val -Nse "
+                                SELECT i.itemnumber     FROM items i     JOIN deleteditems di     ON i.itemnumber=di.itemnumber;" | tr '\t' ',' > /tmp/$val-itemnumber_$time.txt
+                        sudo koha-mysql $val -Nse "
+                                SELECT i.issue_id       FROM issues i    JOIN old_issues oi       ON i.issue_id=oi.issue_id;" | tr '\t' ',' > /tmp/$val-issue_id_$time.txt
+                        sudo koha-mysql $val -Nse "
+                                SELECT r.reserve_id     FROM reserves r  JOIN old_reserves o      ON r.reserve_id=o.reserve_id;" | tr '\t' ',' > /tmp/$val-reserve_id_$time.txt
 
                         while read i; 
                         do
-                                sudo koha-mysql $k -Nse "
+                                sudo koha-mysql $val -Nse "
                                         DELETE FROM deletedborrowers WHERE borrowernumber IN ($i);"
-                                done < /tmp/$k-borrowers_$time.txt
+                                done < /tmp/$val-borrowers_$time.txt
                         while read i;
                         do
-                                sudo koha-mysql $k -Nse "
+                                sudo koha-mysql $val -Nse "
                                         DELETE FROM deletedbiblio WHERE biblionumber IN ($i);"
-                                done < /tmp/$k-biblionumber_$time.txt
+                                done < /tmp/$val-biblionumber_$time.txt
                         while read i;
                         do
-                                sudo koha-mysql $k -Nse "
+                                sudo koha-mysql $val -Nse "
                                         DELETE FROM deleteditems WHERE itemnumber IN ($i);"
-                                done < /tmp/$k-itemnumber_$time.txt
+                                done < /tmp/$val-itemnumber_$time.txt
                         while read i;
                         do
-                                sudo koha-mysql $k -Nse "
+                                sudo koha-mysql $val -Nse "
                                         DELETE FROM old_issues WHERE issue_id IN ($i);"
-                                done < /tmp/$k-issue_id_$time.txt
+                                done < /tmp/$val-issue_id_$time.txt
                         while read i;
                         do
-                                sudo koha-mysql $k -Nse "
+                                sudo koha-mysql $val -Nse "
                                         DELETE FROM old_reserves WHERE reserve_id  IN ($i);"
-                                done  < /tmp/$k-reserve_id_$time.txt
+                                done  < /tmp/$val-reserve_id_$time.txt
 
                         printf "Database repair for $val complete. \n"
                         sleep 1s
