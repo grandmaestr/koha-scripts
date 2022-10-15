@@ -82,13 +82,7 @@ trap "rm -f $LOCK_FILE" EXIT
 touch $LOCK_FILE
 
 # --- Body --------------------------------------------------------
-
-
-# Print the installed Koha instances
-echo "You have the following Koha instances running on this server:"
-echo $(koha-list)
-printf "\n"
-
+# Start worker, zebra, plack
 for val in "${instanceid[@]}"; do
     echo " Activating the Koha instance $val"
 
