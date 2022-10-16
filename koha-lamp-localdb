@@ -8,6 +8,26 @@
 # This script is interactive, so you'll be prompted for input at various stages.
 # You can modify or use this script however you like but I'd really appreciate it if you give me a shout out or attribution if you post it elsewhere :)
 
+# --- Secure MySQL installation-------------------------------------
+SecureMysqlInstallation(){
+	# Make sure that NOBODY can access the server without a password
+sudo mysql -e "ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password by '$dbpass';"
+# Kill the anonymous users
+sudo mysql -e "DROP USER ''@'localhost';"
+# Because our hostname varies we'll use some Bash magic here.
+sudo mysql -e "DROP USER ''@'$(hostname);'"
+# Disable remote root login
+sudo mysql -e "DELETE FROM mysql.user WHERE User='root' AND Host NOT IN ('localhost', '127.0.0.1', '::1');"
+# Kill off the demo database
+sudo mysql -e "DROP DATABASE test;"
+# Uninstall validate_password plugin
+sudo mysql -e "UNINSTALL COMPONENT 'file://component_validate_password';"
+# Make our changes take effect
+sudo mysql -e "FLUSH PRIVILEGES"
+# Any subsequent tries to run queries this way will get access denied because lack of usr/pwd params
+}
+# --- Secure MySQL installation-------------------------------------
+
 # Add a Koha Community Repository
 echo deb http://debian.koha-community.org/koha stable main | sudo tee /etc/apt/sources.list.d/koha.list
 
@@ -29,6 +49,8 @@ sudo apt -y  install apache2-dev
 # Enable the Apache mod_rewrite modules. The following commands enable Apache to create the configuration files.
 sudo a2enmod rewrite
 sudo a2enmod cgi
+sudo a2enmod deflate
+
 sudo systemctl restart apache2.service
 
 # Create symlink to resolve warning "Perl is configured to link against libgdbm, but libgdbm.so was not found."
@@ -42,7 +64,7 @@ sudo apt -y install koha-common
 
 # Secure MySQL. 
 # It is safe to leave validation disabled, but you should always use strong, unique passwords for database credentials.
-./mysql_secure_installation
+SecureMysqlInstallation
 
 # Install PHP. PHP is the component of your setup that will process code to display dynamic content.
 # It can run scripts, connect to your MySQL databases to get information, and hand the processed content over to your web server so that it can display the results to your visitors.
