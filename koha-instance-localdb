@@ -21,53 +21,105 @@ SCRIPT_NAME="$(basename ${0})"
 Help(){
     # Display Help
     cat <<EOF
-        Usage: $SCRIPT_NAME -ihv args
+        Usage: $SCRIPT_NAME [options] 
 
         Options:
-        i - instanceid. The name of the koha instance. One instance id per option.
-        h - help. Print this help.
+		a - The hostname, IP address or URL of the local or remote database. Defaults to localhost.
+		c - The IP or URL address of the client (running the Koha web server). If using a VPC in AWS, Azure, or GCP enter the **Private** IP of your EC2 instance. Defaults to localhost. 
+ 		h - help. Print this help.
+		i - InstanceId. The name of the Koha instance.
+		l - options are local or remote. Defaults to local.
+		p - The password of the database root user.
+		o - OPAC URL. The domain or subdomain to use for the OPAC page.
+		s - Staff URL. The domain or subdomain to use for the Staff page.
+		u - The username of the database root user.
         v - version. Print the script version.
 
         Example:
-        To define a new staff or OPAC url for a single instance called "library", run:
-            $SCRIPT_NAME -i library
-        For multiple instances, run
-                $SCRIPT_NAME -i library1 -i library2 ...
+        To create a Koha instance called "library" with a local database, run:
+            $SCRIPT_NAME -i library \
+						-u rootuser \
+						-p dbpassword \
+						-o opac.example.com \
+						-s staff.example.com
+		
+		To create a Koha instance called "library" with a remote database, run:
+            $SCRIPT_NAME -i library \
+						-l remote \
+						-a mydb.123456789012.us-east-1.rds.amazonaws.com \
+						-c 172.16.78.121 \
+						-u rootuser \
+						-p dbpassword \
+						-o opac.example.com \
+						-s staff.example.com		
 EOF
 }
+
+# --- Options default values -------------------------------------------
+
+# Default hostname value
+hostname="localhost"
+
+# Default client IP
+clientipaddr="localhost"
+
+# Default database location
+dblocation="local"
+
 # --- Options processing -------------------------------------------
 if [ $# == 0 ] ; then
     Help
     exit 1;
 fi
 
-while getopts ":i:vh" optname; do
+while getopts ":a:c:i:h:u:p:o:s:v" optname; do
     case "$optname" in
-      v)
-        echo "Version $VERSION"
-        exit 0;
-        ;;
-      i)  
-        instanceid+=("$OPTARG")
-        ;;
-      h)
-        Help
-        exit 0;
-        ;;
-      \?)
-        echo "Unknown option $OPTARG"
-        Help
-        exit 0;
-        ;;
-      :)
-        echo "Error: you must provide at least one instance name for option -$OPTARG"
-        exit 0;
-        ;;
-      *)
-        echo "Unknown error while processing options"
-        Help
-        exit 0;
-        ;;
+		a) 
+			hostname=("$OPTARG")
+			;;
+		c) 
+			clientipaddr=("$OPTARG")
+			;;
+		h)
+			Help
+			exit 0;
+			;;
+		i) 
+			instanceid=("$OPTARG")
+			;;
+		l) 
+			dblocation=("$OPTARG")
+			;;
+		o) 
+			opacurl=("$OPTARG")
+			;;
+		p) 
+			dbpass=("$OPTARG")
+			;;
+		s) 
+			staffurl=("$OPTARG")
+			;;
+		u) 
+			dbuser=("$OPTARG")
+			;;	
+		v)
+			echo "Version $VERSION"
+			exit 0;
+			;;
+		\?)
+			echo "Unknown option $OPTARG"
+			Help
+			exit 0;
+			;;
+		:)
+			echo "Error: you must provide an argument for option -$OPTARG"
+			exit 0;
+			;;
+		*)
+			echo "Unknown error while processing options"
+			Help
+			exit 0;
+			;;
     esac
   done
 
@@ -76,16 +128,6 @@ shift $(($OPTIND - 1))
 param1=$1
 param2=$2
 
-# --- Stop instance------------------------------------------------
-Stop(){
-	# The following commands stop the Koha instance soon after they are created. I found this necessary when creating multiple instances in order to reduce CPU usage.
-	# Enable instance
-	sudo koha-worker --stop $val
-	# Start Zebra
-	sudo koha-zebra --stop $val
-	# Enable Plack
-	sudo koha-plack --stop $val
-}
 # --- Start instance------------------------------------------------
 Start(){
 	# Enable instance
@@ -101,19 +143,33 @@ Start(){
 # --- Install remote db --------------------------------------------
 InstallRemoteDB(){
 	#create Koha database and user on remote server. Works on MariaDB. May need to be modified for a MySQL server.
-	mysql -h ${hostname} -u ${remotedbroot} -p${remotedbpwd} -e "
+	mysql -h ${hostname} -u ${dbuser} -p${dbpass} -e "
 	CREATE USER 'koha_${val}'@'${clientipaddr}' IDENTIFIED BY '${remotekohadbpwd}';
 	GRANT ALL PRIVILEGES ON koha_${val}.* to 'koha_${val}'@'${clientipaddr}'; 
 	FLUSH PRIVILEGES;"
 }
 # --- Install remote db aurora--------------------------------------
 InstallRemoteDBAurora(){
-	mysql -h ${hostname} -u ${remotedbroot} -p${remotedbpwd} -e "
+	mysql -h ${hostname} -u ${dbuser} -p${dbpass} -e "
 	CREATE USER 'koha_${val}'@'${clientipaddr}' IDENTIFIED BY '${remotekohadbpwd}';
 	GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, INDEX, ALTER, CREATE TEMPORARY TABLES,
 	CREATE VIEW, EVENT, TRIGGER, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, EXECUTE ON koha_${val}.* to 'koha_${val}'@'${clientipaddr}'; FLUSH PRIVILEGES;"
 }	
-
+# --- Create koha-common.cnf --------------------------------------
+CreateKohaCommon(){
+	echo "
+	[client]
+	host     = ${hostname}
+	user     = ${remotedbroot}
+	password = ${remotedbpwd}
+	socket   = /var/run/mysqld/mysqld.sock
+	[mysql_upgrade]
+	host     = ${hostname}
+	user     = ${remotedbroot}
+	password = ${remotedbpwd}
+	socket   = /var/run/mysqld/mysqld.sock
+	" | sudo tee /etc/mysql/koha-common.cnf >/dev/null 
+}
 # --- Locks -------------------------------------------------------
 LOCK_FILE=/tmp/$SUBJECT.lock
 if [ -f "$LOCK_FILE" ]; then
@@ -126,107 +182,67 @@ touch $LOCK_FILE
 
 # --- Body --------------------------------------------------------
 
-
-# Store array in variables
-hn=""
-
-for val in "${instanceid[@]}"; do
-	hn+=" ${hostname}"
-	configpath=/etc/apache2/sites-enabled/$val.conf
-
-
-	# koha-plack requires the following Apache modules
-	sudo a2enmod headers proxy_http
-	sudo a2enmod cgi
-	sudo a2enmod deflate
-
-	# Prompt user to enter their Staff URL
-	read -p "New Staff/admin page url $val (Leave out http:// or https://) : " staffdomain
-
-	# Prompt user to enter their OPAC domain/subdomain
-	read -p "New OPAC url for $val (Leave out http:// or https://) : " opacdomain
-	
-	# Strip out leading http(s):// and set to variable
-	staffurl=$(echo "$staffdomain" | sed "s|.*://||; s|/.*||" )
-	staff+=" ${staffurl}"
-
-	# Strip out leading http(s):// and set to variable
-	opacurl=$(echo "$opacdomain" | sed "s|.*://||; s|/.*||" )
-	opac+=" ${opacurl}"
+for val in "${instanceid}"; do
 
 	# Prompt user for local or remote db install
 	while true; do
-		read -p "Configure Koha instance to use local or remote database? l(ocal)/r(emote): " response 
-
-		case $response in
+		case $dblocation in
     		[lL][oO][cC][aA][lL]|[lL] )
 				# Create the instance
-				printf "Installing Koha with a local database...\n"
-				sleep 1s
 				sudo koha-create --create-db $val
 				break;;
 
 			[rR][eE][mM][oO][tT][eE] | [rR] )
 				# Create the instance
-				read -p "Enter remote database hostname: " hostname
-				read -p "Enter remote database root user: " remotedbroot
-				echo "Enter remote database root password: " 
-				read remotedbpwd
-				echo "Enter the IP address of your client server (i.e. the server runnning the Koha web application). If using AWS, enter the **Private** IP of your EC2 instance: "
-				read clientipaddr
-				# Get and set password for the remote koha database
-				remotekohadbpwd=$(sudo xmlstarlet sel -t -v 'yazgfs/config/pass' /etc/koha/sites/$val/koha-conf.xml)
-
-				printf "Installing Koha with a remote database...\n"
-				sleep 1s
 				sudo koha-create --request-db $val
 
-				# Install a remote db	
+				# Get and set password for the remote Koha database
+				remotekohadbpwd=$(sudo xmlstarlet sel -t -v 'yazgfs/config/pass' /etc/koha/sites/$val/koha-conf.xml)
+
+				# Install a remote Koha instance database	
 				InstallRemoteDB
 				
 				# If using Amazon Aurora MySQL, comment the MySQL script above and uncomment the following line.
 				# InstallRemoteDBAurora
 
-				#Create koha-common.cnf
-				echo "
-				[client]
-				host     = ${hostname}
-				user     = ${remotedbroot}
-				password = ${remotedbpwd}
-				socket   = /var/run/mysqld/mysqld.sock
-				[mysql_upgrade]
-				host     = ${hostname}
-				user     = ${remotedbroot}
-				password = ${remotedbpwd}
-				socket   = /var/run/mysqld/mysqld.sock
-				" | sudo tee /etc/mysql/koha-common.cnf >/dev/null 
+				# Create koha-common.cnf
+				CreateKohaCommon
 				break;;
 
-			* ) echo Invalid response.Try again;;
+			* ) 
+				echo "Invalid value for database location (-l). Option only accepts remote or local as valid inputs. Exiting."
+				exit;;
 		esac
 	done	
 
-	# Enable your Koha instance config
-	sudo a2ensite $val
+	# Set path to Apache config 	
+	configpath=/etc/apache2/sites-enabled/$val.conf
 
-	# Replace ServerName with  Staff url 
+	# Enable your Koha instance apache config
+	sudo a2ensite $val
+	
+	# Strip out leading http(s):// and set to variable
+	staffdomain=$(echo "$staffurl" | sed "s|.*://||; s|/.*||" )
+
+	# Strip out leading http(s):// and set to variable
+	opacdomain=$(echo "$opacurl" | sed "s|.*://||; s|/.*||" )
+
+	# Replace ServerName with Staff url 
 	if [[ -z ${string} ]]; 
 	then
 		echo "ServerName not specified, not setting"
 	else
-	sudo sed  -i "/ServerName*/c\   ServerName $staffurl" $configpath
+	sudo sed  -i "/ServerName*/c\   ServerName $staffdomain" $configpath
 	fi 
 
-	# Replace *ServerName with  OPAC url 
+	# Replace ServerName with OPAC url 
 	if [[ -z ${string} ]]; 
 	then
 		echo "ServerName not specified, not setting"
 	else
-	sudo sed -i  "0,/ServerName $staffurl/s//ServerName $opacurl/" $configpath
+	sudo sed -i  "0,/ServerName $staffdomain/s//ServerName $opacdomain/" $configpath
 	fi
 	
-	# Stop the instance
-	Stop
 # End loop
 done
 
