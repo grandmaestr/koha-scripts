@@ -133,6 +133,7 @@ Start(){
 InstallRemoteDB(){
 	#create Koha database and user on remote server. Works on MariaDB. May need to be modified for a MySQL server.
 	mysql -h ${hostname} -u ${dbuser} -p${dbpass} -e "
+	CREATE DATABASE 'koha_${val}';
 	CREATE USER 'koha_${val}'@'${clientipaddr}' IDENTIFIED BY '${remotekohadbpwd}';
 	GRANT ALL PRIVILEGES ON koha_${val}.* to 'koha_${val}'@'${clientipaddr}'; 
 	FLUSH PRIVILEGES;"
@@ -140,6 +141,7 @@ InstallRemoteDB(){
 # --- Install remote db aurora--------------------------------------
 InstallRemoteDBAurora(){
 	mysql -h ${hostname} -u ${dbuser} -p${dbpass} -e "
+	CREATE DATABASE 'koha_${val}';
 	CREATE USER 'koha_${val}'@'${clientipaddr}' IDENTIFIED BY '${remotekohadbpwd}';
 	GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, INDEX, ALTER, CREATE TEMPORARY TABLES,
 	CREATE VIEW, EVENT, TRIGGER, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, EXECUTE ON koha_${val}.* to 'koha_${val}'@'${clientipaddr}'; FLUSH PRIVILEGES;"
