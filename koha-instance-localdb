@@ -37,10 +37,10 @@ Help(){
 
         Example:
         To create a Koha instance called "library" with a local database, run:
-            $SCRIPT_NAME -i library \
-						-u rootuser \
-						-p dbpassword \
-						-o opac.example.com \
+            $SCRIPT_NAME -i library /\
+						-u rootuser /\
+						-p dbpassword /\
+						-o opac.example.com /\
 						-s staff.example.com
 		
 		To create a Koha instance called "library" with a remote database, run:
