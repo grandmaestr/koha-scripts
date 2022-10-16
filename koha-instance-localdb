@@ -212,14 +212,12 @@ for val in "${instanceid}"; do
 	
 	# Strip out leading http(s):// and set to variable
 	staffdomain=$(echo "$staffurl" | sed "s|.*://||; s|/.*||" )
-	echo $staffdomain
 
 	# Strip out leading http(s):// and set to variable
 	opacdomain=$(echo "$opacurl" | sed "s|.*://||; s|/.*||" )
-	echo $opacdomain
 
 	# Replace ServerName with Staff url 
-	if [[ -z ${string} ]]; 
+	if [[ -z ${staffdomain} ]]; 
 	then
 		echo "ServerName not specified, not setting"
 	else
@@ -227,7 +225,7 @@ for val in "${instanceid}"; do
 	fi 
 
 	# Replace ServerName with OPAC url 
-	if [[ -z ${string} ]]; 
+	if [[ -z ${opacdomain} ]]; 
 	then
 		echo "ServerName not specified, not setting"
 	else

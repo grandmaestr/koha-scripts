@@ -133,7 +133,7 @@ for val in "${instanceid[@]}"; do
 				opac+=" ${opacurl}"
 
 				# Replace ServerName with  Staff url 
-				if [[ -z ${string} ]]; 
+				if [[ -z ${staffurl} ]]; 
 				then
 					echo "ServerName not specified, not setting"
 				else
@@ -141,13 +141,13 @@ for val in "${instanceid[@]}"; do
 				fi 
 
 				# Replace *ServerName with  OPAC url 
-				if [[ -z ${string} ]]; 
+				if [[ -z ${opacurl} ]]; 
 				then
 					echo "ServerName not specified, not setting"
 				else
 				sudo sed -i  "0,/ServerName $staffurl/s//ServerName $opacurl/" $configpath
 				fi
-				
+
 				# Print new conf file
 				printf '##########################Begin Config########################## \n \n'
 				sudo cat $configpath
