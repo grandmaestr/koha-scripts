@@ -61,7 +61,7 @@ if [ $# == 0 ] ; then
     exit 1;
 fi
 
-while getopts ":a:c:i:h:u:p:o:s:v" optname; do
+while getopts ":a:c:i:h:l:u:p:o:s:v" optname; do
     case "$optname" in
 		a) 
 			hostname=("$OPTARG")
@@ -240,7 +240,7 @@ for val in "${instanceid[@]}"; do
 	Start
 done
 # Check Apache for configuration errors
-echo "If you come across any errors, check your instance Apache config at /etc/apache2/sites-enabled/$val."
+echo "If you come across any errors, check your instance Apache config at /etc/apache2/sites-enabled/$val.conf"
 sudo apachectl configtest
 
 # Restart Apache
