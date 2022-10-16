@@ -149,13 +149,13 @@ CreateKohaCommon(){
 	echo "
 	[client]
 	host     = ${hostname}
-	user     = ${remotedbroot}
-	password = ${remotedbpwd}
+	user     = ${dbuser}
+	password = ${dbpass}
 	socket   = /var/run/mysqld/mysqld.sock
 	[mysql_upgrade]
 	host     = ${hostname}
-	user     = ${remotedbroot}
-	password = ${remotedbpwd}
+	user     = ${dbuser}
+	password = ${dbpass}
 	socket   = /var/run/mysqld/mysqld.sock
 	" | sudo tee /etc/mysql/koha-common.cnf >/dev/null 
 }
@@ -212,9 +212,11 @@ for val in "${instanceid}"; do
 	
 	# Strip out leading http(s):// and set to variable
 	staffdomain=$(echo "$staffurl" | sed "s|.*://||; s|/.*||" )
+	echo $staffdomain
 
 	# Strip out leading http(s):// and set to variable
 	opacdomain=$(echo "$opacurl" | sed "s|.*://||; s|/.*||" )
+	echo $opacdomain
 
 	# Replace ServerName with Staff url 
 	if [[ -z ${string} ]]; 
