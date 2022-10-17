@@ -2,7 +2,7 @@
 # ------------------------------------------------------------------
 # Author: Lennon Mazonde
 # GitHub: @grandmaestr
-# Title: koha-capache
+# Title: koha-config-apache
 # Description: 
 # 	This script configures the OPAC and Staff URL in the 
 # 	Apache conf (/etc/apache2/sites-enabled/) file for your Koha instance
