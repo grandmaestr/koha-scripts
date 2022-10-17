@@ -121,36 +121,36 @@ sudo mysql -e "FLUSH PRIVILEGES"
 }
 # --- Body -------------------------------------
 
-# # Add a Koha Community Repository
-# echo deb http://debian.koha-community.org/koha stable main | sudo tee /etc/apt/sources.list.d/koha.list
+# Add a Koha Community Repository
+echo deb http://debian.koha-community.org/koha stable main | sudo tee /etc/apt/sources.list.d/koha.list
 
-# # Add the key in gpg.asc to your APT trusted keys to avoid warning messages on installation:
-# wget -O- https://debian.koha-community.org/koha/gpg.asc | sudo apt-key add -
+# Add the key in gpg.asc to your APT trusted keys to avoid warning messages on installation:
+wget -O- https://debian.koha-community.org/koha/gpg.asc | sudo apt-key add -
 
-# # Update and upgrade Ubuntu
-# sudo apt -y update 
-# sudo apt -y upgrade
-# sudo apt -y clean
+# Update and upgrade Ubuntu
+sudo apt -y update 
+sudo apt -y upgrade
+sudo apt -y clean
 
-# # Install Apache web server
-# sudo apt -y install apache2
-# sudo a2enmod headers proxy_http
+# Install Apache web server
+sudo apt -y install apache2
+sudo a2enmod headers proxy_http
 
-# # Install apache2-dev to resolve apxs issue when installing perl modules
-# sudo apt -y  install apache2-dev
+# Install apache2-dev to resolve apxs issue when installing perl modules
+sudo apt -y  install apache2-dev
 
-# # Enable the Apache mod_rewrite modules. The following commands enable Apache to create the configuration files.
-# sudo a2enmod rewrite
-# sudo a2enmod cgi
-# sudo a2enmod deflate
+# Enable the Apache mod_rewrite modules. The following commands enable Apache to create the configuration files.
+sudo a2enmod rewrite
+sudo a2enmod cgi
+sudo a2enmod deflate
 
-# sudo systemctl restart apache2.service
+sudo systemctl restart apache2.service
 
-# # Create symlink to resolve warning "Perl is configured to link against libgdbm, but libgdbm.so was not found."
-# sudo ln  /usr/lib/x86_64-linux-gnu/libgdbm.so.6.0.0 /usr/lib/x86_64-linux-gnu/libgdbm.so
+# Create symlink to resolve warning "Perl is configured to link against libgdbm, but libgdbm.so was not found."
+sudo ln  /usr/lib/x86_64-linux-gnu/libgdbm.so.6.0.0 /usr/lib/x86_64-linux-gnu/libgdbm.so
 
-# # Download and install the latest Koha release
-# sudo apt -y install koha-common
+# Download and install the latest Koha release
+sudo apt -y install koha-common
 
 ############################################################################################################
 
