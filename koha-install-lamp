@@ -1,0 +1,215 @@
+#!/bin/bash
+# ------------------------------------------------------------------
+# Author: Lennon Mazonde
+# GitHub: @grandmaestr
+# Title: koha-status
+# Description: 
+# 	This script install Apache, MySQL (server or client, depending on your options), PHP on the same instance
+# 	You can copy and paste this script onto your server and make it executable by running "chmod a+x /path/to/file_name"
+# 	To run the script, simply go to "/path/to/file_name" or if it's in your home directory, run "file_name"  in the CLI.
+# 	This script is interactive, so you'll be prompted for input at various stages.
+# 	You can modify or use this script however you like but I'd really appreciate it if you give me a shout out or attribution if you post it elsewhere :)
+
+# ------------------------------------------------------------------
+set -e
+set -x
+
+# Script version
+VERSION=0.1.0
+# Set the name of the script to variable
+SCRIPT_NAME="$(basename ${0})"
+
+# ------Help--------------------------------------------------------
+Help(){
+    # Display Help
+    cat <<EOF
+        Usage: $SCRIPT_NAME -ihv args
+
+        Options:
+		l - database location. Options are remote or local. Defaults to local.
+		t - database type. Options are mariadb (for MariaDB) or mysql (for MySQL). Defaults to MariaDB.
+        h - help. Print this help.
+        v - version. Print the script version.
+
+        Example:
+        To install AMP with a local MariaDB server, run:
+            $SCRIPT_NAME -i library -t mariadb 
+        To install AMP with a remote MySQL server, run:
+                $SCRIPT_NAME -i library1 -t mysql -l remote
+EOF
+}
+
+# --- Options default values -------------------------------------------
+
+# Default client IP
+dbtype="mariadb"
+
+# Default database location
+dblocation="local"
+
+# --- Options processing -------------------------------------------
+if [ $# == 0 ] ; then
+    Help
+    exit 1;
+fi
+
+while getopts ":t:l:vh" optname; do
+    case "$optname" in
+    	v)
+			echo "Version $VERSION"
+			exit 0;
+			;;
+		l)
+			dblocation=("$OPTARG")
+			;;
+		t)
+			dbtype=("$OPTARG")
+			;;
+		h)
+			Help
+			exit 0;
+			;;
+		\?)
+			echo "Unknown option $OPTARG"
+			Help
+			exit 0;
+			;;
+		:)
+			echo "Error: you must provide at least one instance name for option -$OPTARG"
+			exit 0;
+			;;
+		*)
+			echo "Unknown error while processing options"
+			Help
+			exit 0;
+			;;
+    esac
+  done
+
+shift $(($OPTIND - 1))
+
+param1=$1
+param2=$2
+
+# --- Locks -------------------------------------------------------
+LOCK_FILE=/tmp/$SUBJECT.lock
+if [ -f "$LOCK_FILE" ]; then
+   echo "Script is already running"
+   exit
+fi
+
+trap "rm -f $LOCK_FILE" EXIT
+touch $LOCK_FILE
+
+# --- Secure MySQL installation-------------------
+SecureMysqlInstallation(){
+# Make sure that NOBODY can access the server without a password
+sudo mysql -e "ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password by '$dbpass';"
+# Kill the anonymous users
+sudo mysql -e "DROP USER ''@'localhost';"
+# Because our hostname varies we'll use some Bash magic here.
+sudo mysql -e "DROP USER ''@'$(hostname);'"
+# Disable remote root login
+sudo mysql -e "DELETE FROM mysql.user WHERE User='root' AND Host NOT IN ('localhost', '127.0.0.1', '::1');"
+# Kill off the demo database
+sudo mysql -e "DROP DATABASE test;"
+# Uninstall validate_password plugin. It is safe to leave validation disabled, but you should always use strong, unique passwords for database credentials.
+sudo mysql -e "UNINSTALL COMPONENT 'file://component_validate_password';"
+# Make our changes take effect
+sudo mysql -e "FLUSH PRIVILEGES"
+# Any subsequent tries to run queries this way will get access denied because lack of usr/pwd params
+}
+# --- Body -------------------------------------
+
+# Add a Koha Community Repository
+echo deb http://debian.koha-community.org/koha stable main | sudo tee /etc/apt/sources.list.d/koha.list
+
+# Add the key in gpg.asc to your APT trusted keys to avoid warning messages on installation:
+wget -O- https://debian.koha-community.org/koha/gpg.asc | sudo apt-key add -
+
+# Update and upgrade Ubuntu
+sudo apt -y update 
+sudo apt -y upgrade
+sudo apt -y clean
+
+# Install Apache web server
+sudo apt -y install apache2
+sudo a2enmod headers proxy_http
+
+# Install apache2-dev to resolve apxs issue when installing perl modules
+sudo apt -y  install apache2-dev
+
+# Enable the Apache mod_rewrite modules. The following commands enable Apache to create the configuration files.
+sudo a2enmod rewrite
+sudo a2enmod cgi
+sudo a2enmod deflate
+
+sudo systemctl restart apache2.service
+
+# Create symlink to resolve warning "Perl is configured to link against libgdbm, but libgdbm.so was not found."
+sudo ln  /usr/lib/x86_64-linux-gnu/libgdbm.so.6.0.0 /usr/lib/x86_64-linux-gnu/libgdbm.so
+
+# Download and install the latest Koha release
+sudo apt -y install koha-common
+
+############################################################################################################
+
+# Install  MariaDB/MySQL client/server on a local/remote server
+
+	while true; do
+		case $dblocation in
+    		[lL][oO][cC][aA][lL]|[lL] )
+				while true; do
+					case $dbtype in
+						[mM][aA][rR][iI][aA][dD][bB] | [mM][aA][rR][iI][aA] )
+							# Install MariaDB server
+							sudo apt -y install mariadb-server
+							# Secure MySQL. 
+							SecureMysqlInstallation							
+							break;;
+						[mM][yY][sS][qQ][lL] )
+							# Install MySQL server
+							sudo apt -y install mysql-Server
+							# Secure MySQL. 
+							SecureMysqlInstallation
+							break;;
+					esac
+				done
+				break;;
+			[rR][eE][mM][oO][tT][eE] | [rR] )
+ 				while true; do
+					case $dbtype in
+						[mM][aA][rR][iI][aA][dD][bB] | [mM][aA][rR][iI][aA] )
+							# Install MariaDB client
+							sudo apt -y install mariadb-client
+							break;;
+						[mM][yY][sS][qQ][lL] )
+							# Install MySQL server
+							sudo apt -y install mysql-client
+							break;;
+					esac
+				done
+				break;;
+			* ) 
+				echo "Invalid value for database location (-l). Option only accepts remote or local as valid inputs. Exiting."
+				exit;;
+		esac
+	done
+############################################################################################################
+
+# Install PHP. PHP is the component of your setup that will process code to display dynamic content.
+# It can run scripts, connect to your MySQL databases to get information, and hand the processed content over to your web server so that it can display the results to your visitors.
+sudo apt -y install php libapache2-mod-php php-mysql
+
+# Install awscli 
+sudo apt -y install awscli
+
+# Useful sysadmin tools for search. 
+sudo apt -y install mlocate
+
+# Create koha-common.cnf 
+sudo touch /etc/mysql/koha-common.cnf
+sudo chown root:root /etc/mysql/koha-common.cnf
+ 
+# Restart Apache
+sudo systemctl restart apache2.service
