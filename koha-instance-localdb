@@ -13,7 +13,7 @@
 # ------------------------------------------------------------------
 # set -x 
 
-# set -e
+ set -e
 # Script version
 VERSION=0.1.0
 # Set the name of the script to variable
@@ -175,7 +175,7 @@ for val in "${instanceid}"; do
 
 	# Prompt for the mysql root password
 	echo "Enter the password for the database root user:"
-	read dbpass
+	read -s dbpass
 	
 	# Prompt user for local or remote db install
 	while true; do
@@ -200,6 +200,10 @@ for val in "${instanceid}"; do
 
 				# Create koha-common.cnf
 				CreateKohaCommon
+				
+				# remove remote db config files
+				sudo rm $val-db-request.txt
+				
 				break;;
 
 			* ) 
