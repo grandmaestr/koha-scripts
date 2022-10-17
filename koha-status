@@ -11,6 +11,8 @@
 # 	You can modify or use this script however you like but I'd really appreciate it if you give me a shout out or attribution if you post it elsewhere :)
 
 # ------------------------------------------------------------------
+set -e
+set -x
 
 # Script version
 VERSION=0.1.0
@@ -92,15 +94,15 @@ touch $LOCK_FILE
 
 filename=$(tr -dc A-Za-z0-9 </dev/urandom | head -c 5)
 
-for val in in "${instanceid}"; do
-sudo sed -n /ServerName/p /etc/apache2/sites-enabled/$val.conf | sed 's/ServerName//g' | sed 's/#//g' | awk '{$1=$1};1' >> /tmp/$SCRIPT_NAME_$filename.txt
+for val in "${instanceid[@]}"; do
+	sudo sed -n /ServerName/p /etc/apache2/sites-enabled/$val.conf | sed 's/ServerName//g' | sed 's/#//g' | awk '{$1=$1};1' >> /tmp/$filename.txt
 done;
+        echo "Checking the status of Koha instance $val"
 while read url
 do
-        echo "Checking the status of Koha instance $val."
         curl -LIs https://$url | head -n 1
         echo  " "
-done < <(tr ' ' '\n' < /tmp/$SCRIPT_NAME_$filename.txt)
+done < <(tr ' ' '\n' < /tmp/$filename.txt)
 
 # Delete temp file
-rm /tmp/$SCRIPT_NAME_$filename.txt
+rm /tmp/$filename.txt
