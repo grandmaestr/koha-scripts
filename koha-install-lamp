@@ -12,7 +12,7 @@
 
 # ------------------------------------------------------------------
 set -e
-set -x
+# set -x
 
 # Script version
 VERSION=0.1.0
@@ -169,7 +169,7 @@ sudo apt -y install koha-common
 							break;;
 						[mM][yY][sS][qQ][lL] )
 							# Install MySQL server
-							sudo apt -y install mysql-Server
+							sudo apt -y install mysql-server
 							# Secure MySQL. 
 							SecureMysqlInstallation
 							break;;
@@ -184,7 +184,7 @@ sudo apt -y install koha-common
 							sudo apt -y install mariadb-client
 							break;;
 						[mM][yY][sS][qQ][lL] )
-							# Install MySQL server
+							# Install MySQL client
 							sudo apt -y install mysql-client
 							break;;
 					esac
