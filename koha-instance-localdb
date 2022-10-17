@@ -30,7 +30,6 @@ Help(){
  		h - help. Print this help.
 		i - InstanceId. The name of the Koha instance.
 		l - options are local or remote. Defaults to local.
-		p - The password of the database root user.
 		o - OPAC URL. The domain or subdomain to use for the OPAC page.
 		s - Staff URL. The domain or subdomain to use for the Staff page.
 		u - The username of the database root user.
@@ -62,7 +61,7 @@ if [ $# == 0 ] ; then
     exit 1;
 fi
 
-while getopts ":a:c:i:h:l:u:p:o:s:v" optname; do
+while getopts ":a:c:i:h:l:u:o:s:v" optname; do
     case "$optname" in
 		a) 
 			hostname=("$OPTARG")
@@ -82,9 +81,6 @@ while getopts ":a:c:i:h:l:u:p:o:s:v" optname; do
 			;;
 		o) 
 			opacurl=("$OPTARG")
-			;;
-		p) 
-			dbpass=("$OPTARG")
 			;;
 		s) 
 			staffurl=("$OPTARG")
@@ -176,6 +172,10 @@ touch $LOCK_FILE
 
 for val in "${instanceid}"; do
 
+	# Prompt for the mysql root password
+	echo "Enter the password for the database root user:"
+	read dbpass
+	
 	# Prompt user for local or remote db install
 	while true; do
 		case $dblocation in
