@@ -101,24 +101,6 @@ fi
 trap "rm -f $LOCK_FILE" EXIT
 touch $LOCK_FILE
 
-# --- Secure MySQL installation-------------------
-SecureMysqlInstallation(){
-# Make sure that NOBODY can access the server without a password
-sudo mysql -e "ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password by '$dbpass';"
-# Kill the anonymous users
-sudo mysql -e "DROP USER ''@'localhost';"
-# Because our hostname varies we'll use some Bash magic here.
-sudo mysql -e "DROP USER ''@'$(hostname);'"
-# Disable remote root login
-sudo mysql -e "DELETE FROM mysql.user WHERE User='root' AND Host NOT IN ('localhost', '127.0.0.1', '::1');"
-# Kill off the demo database
-sudo mysql -e "DROP DATABASE test;"
-# Uninstall validate_password plugin. It is safe to leave validation disabled, but you should always use strong, unique passwords for database credentials.
-sudo mysql -e "UNINSTALL COMPONENT 'file://component_validate_password';"
-# Make our changes take effect
-sudo mysql -e "FLUSH PRIVILEGES"
-# Any subsequent tries to run queries this way will get access denied because lack of usr/pwd params
-}
 # --- Body -------------------------------------
 
 # Add a Koha Community Repository
@@ -137,14 +119,12 @@ sudo apt-get -y install apache2
 sudo a2enmod headers proxy_http
 
 # Install apache2-dev to resolve apxs issue when installing perl modules
-sudo apt-get -y  install apache2-dev
+sudo apt-get -y install apache2-dev
 
 # Enable the Apache mod_rewrite modules. The following commands enable Apache to create the configuration files.
 sudo a2enmod rewrite
 sudo a2enmod cgi
 sudo a2enmod deflate
-
-sudo systemctl restart apache2.service
 
 # Create symlink to resolve warning "Perl is configured to link against libgdbm, but libgdbm.so was not found."
 if [[ -f /usr/lib/x86_64-linux-gnu/libgdbm.so ]]; 
@@ -153,6 +133,7 @@ if [[ -f /usr/lib/x86_64-linux-gnu/libgdbm.so ]];
 	else
 	sudo ln  /usr/lib/x86_64-linux-gnu/libgdbm.so.6.0.0 /usr/lib/x86_64-linux-gnu/libgdbm.so
 fi
+
 # Download and install the latest Koha release
 sudo apt-get -y install koha-common
 
