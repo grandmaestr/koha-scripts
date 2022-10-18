@@ -87,7 +87,6 @@ param2=$2
 # --- Install remote db --------------------------------------------
 MigrateDB(){
 
-
     # Retrieve the Koha user, password
     kohadbpwd=$(sudo xmlstarlet sel -t -v 'yazgfs/config/pass' $koha_conf)
     kohadbuser=$(sudo xmlstarlet sel -t -v 'yazgfs/config/hostname' $koha_conf)
@@ -141,6 +140,8 @@ trap "rm -f $LOCK_FILE" EXIT
 touch $LOCK_FILE
 
 # --- Body --------------------------------------------------------
+# Enable and start  Koha instances
+for val in "${instanceid[@]}"; do
 
 # Set the path to koha_conf.xml
 koha_conf=/etc/koha/sites/$val/koha-conf.xml
@@ -152,9 +153,6 @@ read -s remotedbroot
 # Prompt user for password of the remote database server
 echo  "Enter the password for destination server root user:	" 
 read -s remotedbpass
-
-# Enable and start  Koha instances
-for val in "${instanceid[@]}"; do
 
 # Dump and migrate Koha instance database from source to destination db server
 MigrateDB
