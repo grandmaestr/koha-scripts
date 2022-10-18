@@ -122,7 +122,7 @@ sudo mysql -e "FLUSH PRIVILEGES"
 # --- Body -------------------------------------
 
 # Add a Koha Community Repository
-echo deb http://debian.koha-community.org/koha stable main | sudo tee /etc/apt-get/sources.list.d/koha.list
+echo deb http://debian.koha-community.org/koha stable main | sudo tee /etc/apt/sources.list.d/koha.list
 
 # Add the key in gpg.asc to your apt-get trusted keys to avoid warning messages on installation:
 wget -O- https://debian.koha-community.org/koha/gpg.asc | sudo apt-key add -
