@@ -33,9 +33,9 @@ Help(){
 
         Example:
         To install AMP with a local MariaDB server, run:
-            $SCRIPT_NAME -i library -t mariadb 
+            $SCRIPT_NAME -l local -t mariadb 
         To install AMP with a remote MySQL server, run:
-                $SCRIPT_NAME -i library1 -t mysql -l remote
+                $SCRIPT_NAME -l remote -t mysql
 EOF
 }
 
