@@ -97,21 +97,21 @@ MigrateDB(){
     mysqldump -u${kohadbuser} -p${kohadbpwd} --single-transaction --databases koha_$val  > /tmp/koha_$val.sql
 
     # Restore Koha database to destination db server
-    mysql -h ${hostname} -u ${remotedbroot} -p${remotedbpwd} < /tmp/koha_$val.sql
+    mysql -h ${hostname} -u ${remotedbroot} -p${remotedbpass} < /tmp/koha_$val.sql
 
     koha-rebuild-zebra --full "$val"
 }
 # --- Install remote db --------------------------------------------
 CreateRemoteKohaUserMySQL(){
 	# Create Koha user in remote db server
-    mysql -h ${hostname} -u ${remotedbroot} -p${remotedbpwd} -e "
+    mysql -h ${hostname} -u ${remotedbroot} -p${remotedbpass} -e "
     CREATE USER IF NOT EXISTS 'koha_$val'@'${clientipaddr}' IDENTIFIED BY '${kohadbpwd}';
     GRANT ALL PRIVILEGES ON koha_$val.* to 'koha_$val'@'${clientipaddr}';
     FLUSH PRIVILEGES;"
 }
 # --- Install remote db aurora--------------------------------------
 CreateRemoteKohaUserAurora(){
-    mysql -h ${hostname} -u ${remotedbroot} -p${remotedbpwd} -e "
+    mysql -h ${hostname} -u ${remotedbroot} -p${remotedbpass} -e "
 	CREATE USER 'koha_${val}'@'${clientipaddr}' IDENTIFIED B}';
 	GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, INDEX, ALTER, CREATE TEMPORARY TABLES,
 	CREATE VIEW, EVENT, TRIGGER, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, EXECUTE ON koha_${val}.* to 'koha_${val}'@'${clientipaddr}'; FLUSH PRIVILEGES;"
@@ -149,7 +149,7 @@ read -s remotedbroot
 
 # Prompt user for password of the remote database server
 echo  "Enter the password for destination server root user:	" 
-read -s remotedbpwd
+read -s remotedbpass
 
 # Enable and start  Koha instances
 for val in "${instance[@]}"; do
