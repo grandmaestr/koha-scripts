@@ -92,7 +92,7 @@ MigrateDB(){
     kohadbuser=koha_$val
 
     # Dump Koha database from the source db server
-    mysqldump -u${kohadbuser} -p${kohadbpwd} --single-transaction --databases koha_$val  > /tmp/koha_$val.sql
+    mysqldump -u${kohadbuser} -p${kohadbpwd} --single-transaction --databases  --no-tablespaces koha_$val  > /tmp/koha_$val.sql
 
     # Restore Koha database to destination db server
     mysql -h ${hostname} -u ${remotedbroot} -p${remotedbpass} < /tmp/koha_$val.sql
