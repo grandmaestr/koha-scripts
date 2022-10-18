@@ -27,7 +27,7 @@ Help(){
 
         Options:
 		l - database location. Options are remote or local. Defaults to local.
-		t - database type. Options are mariadb (for MariaDB) or mysql (for MySQL). Defaults to MariaDB.
+		t - database type. Options are mariadb (for MariaDB) or mysql (for MySQL). Defaults to MySQL.
         h - help. Print this help.
         v - version. Print the script version.
 
@@ -42,7 +42,7 @@ EOF
 # --- Options default values -------------------------------------------
 
 # Default client IP
-dbtype="mariadb"
+dbtype="mysql"
 
 # Default database location
 dblocation="local"
