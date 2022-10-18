@@ -86,8 +86,6 @@ param2=$2
 
 # --- Install remote db --------------------------------------------
 MigrateDB(){
-    # Set the path to koha_conf.xml
-    koha_conf=/etc/koha/sites/$val/koha-conf.xml
 
     # Retrieve the Koha user, password
     kohadbpwd=$(sudo xmlstarlet sel -t -v 'yazgfs/config/pass' $koha_conf)
@@ -142,6 +140,9 @@ trap "rm -f $LOCK_FILE" EXIT
 touch $LOCK_FILE
 
 # --- Body --------------------------------------------------------
+
+# Set the path to koha_conf.xml
+koha_conf=/etc/koha/sites/$val/koha-conf.xml
 
 # Prompt user for root user of the remote database server
 echo "Enter the root user of the destination server:	" 
