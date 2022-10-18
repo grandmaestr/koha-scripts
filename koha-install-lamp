@@ -74,6 +74,8 @@ while getopts ":t:l:vh" optname; do
 			Help
 			exit 0;
 			;;
+		:)
+			;;
 		*)
 			echo "Unknown error while processing options"
 			Help
