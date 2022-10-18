@@ -89,7 +89,7 @@ MigrateDB(){
 
     # Retrieve the Koha user, password
     kohadbpwd=$(sudo xmlstarlet sel -t -v 'yazgfs/config/pass' $koha_conf)
-    kohadbuser=$(sudo xmlstarlet sel -t -v 'yazgfs/config/hostname' $koha_conf)
+    kohadbuser=koha_$val
 
     # Dump Koha database from the source db server
     mysqldump -u${kohadbuser} -p${kohadbpwd} --single-transaction --databases koha_$val  > /tmp/koha_$val.sql
