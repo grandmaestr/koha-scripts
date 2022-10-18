@@ -122,22 +122,22 @@ sudo mysql -e "FLUSH PRIVILEGES"
 # --- Body -------------------------------------
 
 # Add a Koha Community Repository
-echo deb http://debian.koha-community.org/koha stable main | sudo tee /etc/apt/sources.list.d/koha.list
+echo deb http://debian.koha-community.org/koha stable main | sudo tee /etc/apt-get/sources.list.d/koha.list
 
-# Add the key in gpg.asc to your APT trusted keys to avoid warning messages on installation:
-wget -O- https://debian.koha-community.org/koha/gpg.asc | sudo apt-key add -
+# Add the key in gpg.asc to your apt-get trusted keys to avoid warning messages on installation:
+wget -O- https://debian.koha-community.org/koha/gpg.asc | sudo apt-get-key add -
 
 # Update and upgrade Ubuntu
-sudo apt -y update 
-sudo apt -y upgrade
-sudo apt -y clean
+sudo apt-get -y update 
+sudo apt-get -y upgrade
+sudo apt-get -y clean
 
 # Install Apache web server
-sudo apt -y install apache2
+sudo apt-get -y install apache2
 sudo a2enmod headers proxy_http
 
 # Install apache2-dev to resolve apxs issue when installing perl modules
-sudo apt -y  install apache2-dev
+sudo apt-get -y  install apache2-dev
 
 # Enable the Apache mod_rewrite modules. The following commands enable Apache to create the configuration files.
 sudo a2enmod rewrite
@@ -150,7 +150,7 @@ sudo systemctl restart apache2.service
 sudo ln  /usr/lib/x86_64-linux-gnu/libgdbm.so.6.0.0 /usr/lib/x86_64-linux-gnu/libgdbm.so
 
 # Download and install the latest Koha release
-sudo apt -y install koha-common
+sudo apt-get -y install koha-common
 
 ############################################################################################################
 
@@ -163,19 +163,19 @@ sudo apt -y install koha-common
 					case $dbtype in
 						[mM][aA][rR][iI][aA][dD][bB] | [mM][aA][rR][iI][aA] )
 							# Install MariaDB server
-							sudo apt -y install mariadb-server
+							sudo apt-get -y install mariadb-server
 							# Secure MySQL. 
 							echo "Enter the password for the database root user"
 							read -s dbpass
-							SecureMysqlInstallation							
+							sudo mysql_secure_installation							
 							break;;
 						[mM][yY][sS][qQ][lL] )
 							# Install MySQL server
-							sudo apt -y install mysql-server
+							sudo apt-get -y install mysql-server
 							# Secure MySQL. 
 							echo "Enter the password for the database root user"
 							read -s dbpass
-							SecureMysqlInstallation
+							sudo mysql_secure_installation							
 							break;;
 					esac
 				done
@@ -185,11 +185,11 @@ sudo apt -y install koha-common
 					case $dbtype in
 						[mM][aA][rR][iI][aA][dD][bB] | [mM][aA][rR][iI][aA] )
 							# Install MariaDB client
-							sudo apt -y install mariadb-client
+							sudo apt-get -y install mariadb-client
 							break;;
 						[mM][yY][sS][qQ][lL] )
 							# Install MySQL client
-							sudo apt -y install mysql-client
+							sudo apt-get -y install mysql-client
 							break;;
 					esac
 				done
@@ -203,13 +203,13 @@ sudo apt -y install koha-common
 
 # Install PHP. PHP is the component of your setup that will process code to display dynamic content.
 # It can run scripts, connect to your MySQL databases to get information, and hand the processed content over to your web server so that it can display the results to your visitors.
-sudo apt -y install php libapache2-mod-php php-mysql
+sudo apt-get -y install php libapache2-mod-php php-mysql
 
 # Install awscli 
-sudo apt -y install awscli
+sudo apt-get -y install awscli
 
 # Useful sysadmin tools for search. 
-sudo apt -y install mlocate
+sudo apt-get -y install mlocate
 
 # Create koha-common.cnf 
 sudo touch /etc/mysql/koha-common.cnf
