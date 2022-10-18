@@ -147,8 +147,12 @@ sudo a2enmod deflate
 sudo systemctl restart apache2.service
 
 # Create symlink to resolve warning "Perl is configured to link against libgdbm, but libgdbm.so was not found."
-sudo ln  /usr/lib/x86_64-linux-gnu/libgdbm.so.6.0.0 /usr/lib/x86_64-linux-gnu/libgdbm.so
-
+if [[ -f /usr/lib/x86_64-linux-gnu/libgdbm.so ]]; 
+	then
+	break
+	else
+	sudo ln  /usr/lib/x86_64-linux-gnu/libgdbm.so.6.0.0 /usr/lib/x86_64-linux-gnu/libgdbm.so
+fi
 # Download and install the latest Koha release
 sudo apt-get -y install koha-common
 
