@@ -148,16 +148,13 @@ sudo apt-get -y install koha-common
 							# Install MariaDB server
 							sudo apt-get -y install mariadb-server
 							# Secure MySQL. 
-							echo "Enter the password for the database root user"
-							read -s dbpass
 							sudo mysql_secure_installation							
 							break;;
 						[mM][yY][sS][qQ][lL] )
 							# Install MySQL server
 							sudo apt-get -y install mysql-server
 							# Secure MySQL. 
-							echo "Enter the password for the database root user"
-							read -s dbpass
+
 							sudo mysql_secure_installation							
 							break;;
 					esac
