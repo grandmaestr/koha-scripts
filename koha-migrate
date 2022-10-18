@@ -151,9 +151,6 @@ read -s remotedbroot
 echo  "Enter the password for destination server root user:	" 
 read -s remotedbpass
 
-# Enable and start  Koha instances
-for val in "${instance[@]}"; do
-
 # Dump and migrate Koha instance database from source to destination db server
 MigrateDB
 
@@ -165,8 +162,6 @@ sudo rm -f /tmp/koha_$val.sql
 
 # Replace database endpoint with remote db endpoint
 sudo xmlstarlet edit -L --update 'yazgfs/config/hostname' --value "$hostname" $koha_conf
-
-done
 
 # Update koha-common.cnf with config for remote db
 CreateKohaCommon
