@@ -74,10 +74,6 @@ while getopts ":t:l:vh" optname; do
 			Help
 			exit 0;
 			;;
-		:)
-			echo "Error: you must provide at least one instance name for option -$OPTARG"
-			exit 0;
-			;;
 		*)
 			echo "Unknown error while processing options"
 			Help
