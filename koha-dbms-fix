@@ -4,7 +4,7 @@
 # https://wiki.koha-community.org/wiki/DBMS_auto_increment_fix
 # Actual script is courtesy of KohaAloha
 # https://github.com/KohaAloha/koha-mysql-init
-set -x
+# set -x
 set -e
 
 sudo  cp -a ./koha-mysql-init/koha-mysql-init.sh /etc/koha/

@@ -11,7 +11,7 @@
 # 	You can modify or use this script however you like but I'd really appreciate it if you give me a shout out or attribution if you post it elsewhere :)
 
 # ------------------------------------------------------------------
-
+set -e
 # Script version
 VERSION=0.1.0
 # Set the name of the script to variable
