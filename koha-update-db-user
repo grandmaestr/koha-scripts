@@ -7,14 +7,14 @@ echo $(koha-list)
 printf "\n"
 
 # Prompt the user for the name(s) of the Koha instance(s) they want to migrate 
-read -p "Enter the name of each  Koha instance database you want to migrate separated by a space:	" -a instance
+read -p "Enter the name of each  Koha instance database you want to migrate separated by a space:       " -a instance
 
 # Prompt the user for the database endpoint
 read -p "Enter the URL/endpoint of your database server:   " hostname
 
 
 # Prompt user for root user of the database server
-read -p "Enter the username of your database root user:	" remotedbroot
+read -p "Enter the username of your database root user: " remotedbroot
 
 # Prompt user for password of the database server
 echo "Enter the password for the root user of your database server: "
@@ -22,7 +22,7 @@ read -s remotedbpwd
 
 
 # Prompt the user the ipaddress of the web server
-read -p "Enter the IP address of your web server:	" clientipaddr
+read -p "Enter the IP address of your web server:       " clientipaddr
 
 # Enable and start  Koha instances
 for instancename in "${instance[@]}"; do
@@ -30,14 +30,16 @@ for instancename in "${instance[@]}"; do
 # Set the path to koha_conf.xml
 koha_conf=/etc/koha/sites/$instancename/koha-conf.xml
 
-
 # Retrieve the Koha user password in koha-conf.xml
 remotekohadbpwd=$(sudo xmlstarlet sel -t -v 'yazgfs/config/pass' $koha_conf)
 
 echo "The current DB hostname for $instancename is $(sudo xmlstarlet sel -t -v 'yazgfs/config/hostname' $koha_conf)"
 
+##################################
+# A script should only do one thing. therefore i'm commenting this out
 # Replace database endpoint with remote db endpoint
-sudo xmlstarlet edit -L --update 'yazgfs/config/hostname' --value "$hostname" $koha_conf
+# sudo xmlstarlet edit -L --update 'yazgfs/config/hostname' --value "$hostname" $koha_conf
+##################################
 
 # Create Koha user in remote db server
 mysql -h ${hostname} -u ${remotedbroot} -p${remotedbpwd} -e "
