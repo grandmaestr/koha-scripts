@@ -36,8 +36,7 @@ remotekohadbpwd=$(sudo xmlstarlet sel -t -v 'yazgfs/config/pass' $koha_conf)
 echo "The current DB hostname for $instancename is $(sudo xmlstarlet sel -t -v 'yazgfs/config/hostname' $koha_conf)"
 
 ##################################
-# A script should only do one thing. therefore i'm commenting this out
-# Replace database endpoint with remote db endpoint
+# Replace database endpoint with remote db endpoint for each instance
 # sudo xmlstarlet edit -L --update 'yazgfs/config/hostname' --value "$hostname" $koha_conf
 ##################################
 
