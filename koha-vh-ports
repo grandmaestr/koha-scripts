@@ -1,0 +1,111 @@
+#!/bin/bash
+# ------------------------------------------------------------------
+# Author: Lennon Mazonde
+# GitHub: @grandmaestr
+# Title:koha-vhost-ports
+# Description: 
+# This script updates the VirtualHost config to listen to on the specified port.
+# THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+# ------------------------------------------------------------------
+
+# Script version
+VERSION=0.1.0
+# Set the name of the script to variable
+SCRIPT_NAME="$(basename ${0})"
+
+# ------Help--------------------------------------------------------
+Help(){
+    # Display Help
+    cat <<EOF
+        Usage: $SCRIPT_NAME -ihv args
+
+        Options:
+        i - instanceid. The name of the koha instance. One instance id per option.
+        h - help. Print this help.
+        v - version. Print the script version.
+
+        Example:
+        To run the script on a single instance called "library", run:
+            $SCRIPT_NAME -i library
+        For multiple instances, run
+                $SCRIPT_NAME -i library1 -i library2 ...
+EOF
+}
+# --- Options processing -------------------------------------------
+if [ $# == 0 ] ; then
+    Help
+    exit 1;
+fi
+
+while getopts ":i:vh" optname; do
+    case "$optname" in
+      v)
+        echo "Version $VERSION"
+        exit 0;
+        ;;
+      i)  
+        instanceid+=("$OPTARG")
+        ;;
+      h)
+        Help
+        exit 0;
+        ;;
+      \?)
+        echo "Unknown option $OPTARG"
+        Help
+        exit 0;
+        ;;
+      :)
+        echo "Error: you must provide at least one instance name for option -$OPTARG"
+        exit 0;
+        ;;
+      *)
+        echo "Unknown error while processing options"
+        Help
+        exit 0;
+        ;;
+    esac
+  done
+
+shift $(($OPTIND - 1))
+
+param1=$1
+param2=$2
+
+# --- Backup Original Config -------------------------------------
+Backup(){
+	# Backup 
+        sudo rsync -a /etc/apache2/sites-enabled/$val.conf /etc/apache2/sites-enabled/$val.conf.bkp.$(date +"%d_%m_%Y_%T")
+}
+# --- Restore Original Config -------------------------------------
+Replace(){
+	      # Set the first port
+        # Replace the vhost with the new port in the range
+        sudo sed -i "/.*VirtualHost .*/c\\<VirtualHost \*:$port\>" /etc/apache2/sites-enabled/$val.conf ;
+        # Augment by 1
+        ((port=port+1))
+         sudo sed -i "0,/.*VirtualHost .*/s//\<VirtualHost \*:$port\>/" /etc/apache2/sites-enabled/$val.conf ;
+        # Augment by 1
+        ((port=port+1))
+}
+
+# --- Locks -------------------------------------------------------
+LOCK_FILE=/tmp/$SUBJECT.lock
+if [ -f "$LOCK_FILE" ]; then
+   echo "Script is already running"
+   exit
+fi
+
+trap "rm -f $LOCK_FILE" EXIT
+touch $LOCK_FILE
+
+# --- Body --------------------------------------------------------
+set -x 
+
+# Set the inital port numberdd
+read -p "Enter the port number to be used in the sequence (e.g. 8100): " initial_portnumber
+port=$initial_portnumber
+for val in "${instanceid[@]}"; do
+        Backup
+        Replace
+done
