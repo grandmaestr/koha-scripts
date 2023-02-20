@@ -167,7 +167,7 @@ for val in "${instanceid[@]}"; do
                         
                         # Add the foreign key
                         sudo koha-mysql $val -Nse "ALTER TABLE borrower_relationships ADD CONSTRAINT r_guarantor FOREIGN KEY (guarantor_id) REFERENCES borrowers (borrowernumber) ON DELETE CASCADE ON UPDATE CASCADE;"
-                        printf "The foreign key drop and recreate operation for $val is complete. \n"
+                        printf "The foreign key drop and recreate operation for $val is complete. \n If the koha-upgrade-schema commmand above produces errors, you will need to resolve those errors before you can successfully complete the upgrade process. \n"
                         sleep 1s
 
                 #         # Prompt to check and restore the original database and configuration files
