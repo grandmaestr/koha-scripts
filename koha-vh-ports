@@ -77,14 +77,18 @@ Backup(){
 	# Backup 
         sudo rsync -a /etc/apache2/sites-enabled/$val.conf /etc/apache2/sites-enabled/$val.conf.bkp.$(date +"%d_%m_%Y_%T")
 }
-# --- Restore Original Config -------------------------------------
+# --- Modify vhosts Config -------------------------------------
 Replace(){
-	      # Set the first port
+              # Set the first port
         # Replace the vhost with the new port in the range
         sudo sed -i "/.*VirtualHost .*/c\\<VirtualHost \*:$port\>" /etc/apache2/sites-enabled/$val.conf ;
+        # Insert port in ports.conf
+        sudo sed -i "0,/^Listen .*/s//Listen $port\n&/" /etc/apache2/ports.conf
         # Augment by 1
         ((port=port+1))
          sudo sed -i "0,/.*VirtualHost .*/s//\<VirtualHost \*:$port\>/" /etc/apache2/sites-enabled/$val.conf ;
+        # Insert port in ports.conf
+        sudo sed -i "0,/^Listen .*/s//Listen $port\n&/" /etc/apache2/ports.conf
         # Augment by 1
         ((port=port+1))
 }
