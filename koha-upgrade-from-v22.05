@@ -98,7 +98,7 @@ param2=$2
 Backup(){
         # Backup database
         while true; do
-                read -p "Backup all your Koha instances? This step is strongly recommended." response 
+                read -p "Do you want to backup all your Koha instances? This step is strongly recommended." response 
                         case $response in
                                 [yY][eE][sS]|[yY] )
                                 printf "Running backup. Please be patient. \n";
@@ -196,6 +196,9 @@ set -x
 # Set a time variable to be used in naming of backup and tmp files created during the process.
 time=$(date +"%d_%m_%Y_%T")
 
+# Backup databases
+Backup
+
 # Enable and start  Koha instances
 for val in "${instanceid[@]}"; do 
 # Upgrade the database schema of your Koha instances.
@@ -211,8 +214,6 @@ for val in "${instanceid[@]}"; do
 
                                         case $response in
                                         [yY][eE][sS]|[yY] )
-                                                # Backup databases
-                                                Backup
 
                                                 # Drop and recreate the table
                                                 DropErm 2>/tmp/$SUBJECT.$time.error.log
