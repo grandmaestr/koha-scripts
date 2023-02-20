@@ -12,6 +12,7 @@
 VERSION=0.1.0
 # Set the name of the script to variable
 SCRIPT_NAME="$(basename ${0})"
+SUBJECT=koha-vhosts-ports
 
 # ------Help--------------------------------------------------------
 Help(){

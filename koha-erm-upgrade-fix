@@ -20,6 +20,7 @@
 VERSION=0.1.0
 # Set the name of the script to variable
 SCRIPT_NAME="$(basename ${0})"
+SUBJECT=koha-erm-upgrade-fix
 
 # ------Help--------------------------------------------------------
 Help(){
@@ -119,7 +120,8 @@ trap "rm -f $LOCK_FILE" EXIT
 touch $LOCK_FILE
 
 # --- Body --------------------------------------------------------
-set -x 
+set -x
+
 
 time=$(date +"%d_%m_%Y_%T")
 # Enable and start  Koha instances
