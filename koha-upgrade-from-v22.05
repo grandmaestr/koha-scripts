@@ -200,7 +200,7 @@ time=$(date +"%d_%m_%Y_%T")
 for val in "${instanceid[@]}"; do 
 # Upgrade the database schema of your Koha instances.
         # If the schema upgrade fails with erm table and foreign key check errors, run fixes:
-        if sudo koha-upgrade-schema $val | grep -E "ERROR(.*)CONSTRAINT erm_eholdings_packages_agreements_uniq(.*)\|ERROR - {UNKNOWN}: DBI Exception: DBD::mysql::db do failed: Cannot change column 'guarantor_id': used in a foreign key constraint 'r_guarantor'";
+        if sudo koha-upgrade-schema $val | grep -E "ERROR(.*)CONSTRAINT erm_eholdings_packages_agreements_uniq(.*)\|ERROR(.*)Cannot change column 'guarantor_id': used in a foreign key constraint 'r_guarantor'(.*)";
         then
                         if sudo koha-upgrade-schema $val | grep -E "ERROR(.*)CONSTRAINT erm_eholdings_packages_agreements_uniq(.*)";
                         then
@@ -237,7 +237,7 @@ for val in "${instanceid[@]}"; do
                         fi
 
                         # Fix foreign key error
-                        if sudo koha-upgrade-schema $val | grep -E "Cannot change column 'guarantor_id': used in a foreign key constraint 'r_guarantor'";
+                        if sudo koha-upgrade-schema $val | grep -E "ERROR(.*)Cannot change column 'guarantor_id': used in a foreign key constraint 'r_guarantor'(.*)";
                         then
                                 printf "The koha-schema-upgrade process produced an error message related to the borrower_relationships.guarantor_id table. \n The suggested fix is to drop the r_guarantor foreign key, run the schema upgrade, and then recreate the foreign key."
                                 
