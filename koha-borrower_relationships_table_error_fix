@@ -1,0 +1,204 @@
+#!/bin/bash
+# ------------------------------------------------------------------
+# Author: Lennon Mazonde
+# GitHub: @grandmaestr
+# Title: koha-erm-upgrade-fix
+# Description: 
+# You may encounter the following error while upgrading from Koha 22.06 (or earlier) to 22.11 (or later):
+##################
+#       Upgrading database schema for kohadev
+#       Upgrade to 22.06.00.048  [02:11:58]: Bug 30472 - borrower_relationships.guarantor_id NOT NULL
+#       ERROR - {UNKNOWN}: DBI Exception: DBD::mysql::db do failed: Cannot change column 'guarantor_id': used in a foreign key constraint 'r_guarantor' at /usr/share/koha/lib/C4/Installer.pm line 739
+
+#################
+# This script attempts to fix this error by dropping and recreating the foreign key constraint table. Please make sure you understand what you are doing and make a  backup of your database and have a recovery procedure in place before running this script.
+# See:
+# https://bugs.koha-community.org/bugzilla3/show_bug.cgi?id=31673
+# https://www.mail-archive.com/koha@lists.katipo.co.nz/msg29255.html
+# https://bugs.koha-community.org/bugzilla3/show_bug.cgi?id=31086
+# https://github.com/Koha-Community/Koha/blob/master/installer/data/mysql/kohastructure.sql
+
+
+# THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+# ------------------------------------------------------------------
+
+# Script version
+VERSION=0.1.0
+# Set the name of the script to variable
+SCRIPT_NAME="$(basename ${0})"
+SUBJECT=koha-borrower_relationships_table_error_fix
+
+# ------Help--------------------------------------------------------
+Help(){
+    # Display Help
+    cat <<EOF
+        Usage: $SCRIPT_NAME -ihv args
+
+        Options:
+        i - instanceid. The name of the koha instance. One instance id per option.
+        h - help. Print this help.
+        v - version. Print the script version.
+
+        Example:
+        To run the script on a single instance called "library", run:
+            $SCRIPT_NAME -i library
+        For multiple instances, run
+                $SCRIPT_NAME -i library1 -i library2 ...
+EOF
+}
+# --- Options processing -------------------------------------------
+if [ $# == 0 ] ; then
+    Help
+    exit 1;
+fi
+
+while getopts ":i:vh" optname; do
+    case "$optname" in
+      v)
+        echo "Version $VERSION"
+        exit 0;
+        ;;
+      i)  
+        instanceid+=("$OPTARG")
+        ;;
+      h)
+        Help
+        exit 0;
+        ;;
+      \?)
+        echo "Unknown option $OPTARG"
+        Help
+        exit 0;
+        ;;
+      :)
+        echo "Error: you must provide at least one instance name for option -$OPTARG"
+        exit 0;
+        ;;
+      *)
+        echo "Unknown error while processing options"
+        Help
+        exit 0;
+        ;;
+    esac
+  done
+
+shift $(($OPTIND - 1))
+
+param1=$1
+param2=$2
+
+# --- Backup Original Config -------------------------------------
+Backup(){
+	# Backup 
+        sudo koha-run-backups
+}
+# --- Restore Original Config -------------------------------------
+Restore(){
+	# Stop and remove Koha instance
+        sudo koha-worker --stop $val
+        sudo koha-plack --stop $val
+        sudo koha-zebra --stop $val
+        sudo koha-remove $val
+        sudo deluser ${val}-koha
+        sudo rm /etc/apache2/sites-enabled/$val.conf /etc/apache2/sites-enabled/$val-le-ssl.conf 
+        sudo rm -rf /etc/koha/sites/$val
+        sudo rm -rf /var/lib/koha/$val
+        sudo systemctl restart apache2.service $val
+
+        # Set path to backup files
+        sqldump=$(sudo ls /var/spool/koha/$val/*.sql.gz -t | head -n1)
+        configdump=$(sudo ls /var/spool/koha/$val/*.tar.gz -t | head -n1)
+        sudo koha-restore $sqldump $configdump
+        sudo koha-worker --start $val
+        sudo koha-plack --enable $val
+        sudo koha-plack --start $val
+        sudo koha-zebra --start $val
+}
+
+# --- Locks -------------------------------------------------------
+LOCK_FILE=/tmp/$SUBJECT.lock
+if [ -f "$LOCK_FILE" ]; then
+   echo "Script is already running"
+   exit
+fi
+
+trap "rm -f $LOCK_FILE" EXIT
+touch $LOCK_FILE
+
+# --- Body --------------------------------------------------------
+set -x
+
+
+time=$(date +"%d_%m_%Y_%T")
+# Enable and start  Koha instances
+for val in "${instanceid[@]}"; do 
+	while true; do
+		read -p "Drop and recreate the foreign key 'r_guarantor' for $val?:  " response 
+
+		case $response in
+                [yY][eE][sS]|[yY] )
+                        # Backup database
+                                while true; do
+                                      read -p "Backup all your Koha instances? This step is strongly recommended." response 
+                                         case $response in
+                                                 [yY][eE][sS]|[yY] )
+                                                        printf "Running backup. Please be patient. \n";
+                                                        Backup 2>/dev/null;
+                                                        printf "Backup complete \n";
+                                                break;;
+                                        
+                                                [nN][oO]|[nN] ) 
+                                                        printf "Skipping backup. \n";
+                                                break;;
+
+                                        [qQ][uU][iI][tT] | [qQ] )
+                                                exit;;
+
+                                        * ) echo Invalid response.Try again;;
+                                        esac
+                                done
+
+                        # Drop the foreign key
+                        echo print
+                        sudo koha-mysql $val -Nse "ALTER TABLE borrower_relationships DROP FOREIGN KEY r_guarantor;ALTER TABLE borrower_relationships MODIFY COLUMN guarantor_id INT(11) COLLATE utf8mb4_unicode_ci NOT NULL;"
+
+                        # Upgrade the database schema
+                        sudo koha-upgrade-schema $val 
+                        
+                        # Add the foreign key
+                        sudo koha-mysql $val -Nse "ALTER TABLE borrower_relationships ADD CONSTRAINT r_guarantor FOREIGN KEY (guarantor_id) REFERENCES borrowers (borrowernumber) ON DELETE CASCADE ON UPDATE CASCADE;"
+                        printf "The foreign key drop and recreate operation for $val is complete. \n"
+                        sleep 1s
+
+                #         # Prompt to check and restore the original database and configuration files
+                #         printf "The database repair is complete. Check if $val is running correctly. \n If anything is amiss and you need to restore your database and config files to the original state, \n answer y(es) to the next prompt.\n"
+                #         while true; do
+                #                 read -p "Restore database and configuration files?" response 
+                #                 case $response in
+                #                         [yY][eE][sS]|[yY] )
+                #                                 Restore;
+                #                                 printf "The original database and configuration has been restored. \n";
+                #                                 break;;
+                                        
+                #                         [nN][oO]|[nN] ) 
+                #                                 printf "Changes kept \n";
+                #                                 break;;
+
+                #                         [qQ][uU][iI][tT] | [qQ] )
+                #                                 exit;;
+
+                #                         * ) echo Invalid response.Try again;;
+                #                 esac
+                #         done
+			break;;
+
+                [nN][oO]|[nN] ) echo No changes have been made;
+                        break;;
+
+                [qQ][uU][iI][tT] | [qQ] )
+                        exit;;
+
+                * ) echo Invalid response.Try again;;
+                esac
+        done
+done
