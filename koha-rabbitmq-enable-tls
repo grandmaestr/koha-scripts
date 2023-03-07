@@ -1,6 +1,7 @@
 #!/bin/bash
-set -x
-set -e
+# set -x
+# set -e
+
 # Help text
 show_help() {
   echo "Usage: enable-tls-for-rabbitmq.sh"
@@ -33,6 +34,8 @@ done
 # Prompt user for koha instance name
 read -p "Enter the name of the Koha instance(s), separated by a space, for which you are configuring RabbitMQ: " -a instance
 
+# Backup the Koha database and configs in case of recovery
+sudo koha-run-backups >/dev/null 2>&1
 
 # Clone the tls gen repo 
 git clone https://github.com/rabbitmq/tls-gen tls-gen
