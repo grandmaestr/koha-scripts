@@ -1,0 +1,118 @@
+#!/bin/bash
+set -x
+set -e
+# Help text
+show_help() {
+  echo "Usage: enable-tls-for-rabbitmq.sh"
+  echo "Enable TLS for RabbitMQ by generating certificates and updating the configuration file."
+  echo ""
+  echo "Options:"
+  echo "  -h, --help       Display this help message."
+}
+
+# Parse command line arguments
+while [[ $# -gt 0 ]]
+do
+key="$1"
+
+case $key in
+    -h|--help)
+    show_help
+    exit 0
+    ;;
+    *)
+    echo "Unknown option: $1"
+    echo ""
+    show_help
+    exit 1
+    ;;
+esac
+done
+
+
+# Prompt user for koha instance name
+read -p "Enter the name of the Koha instance(s), separated by a space, for which you are configuring RabbitMQ: " -a instance
+
+
+# Clone the tls gen repo 
+git clone https://github.com/rabbitmq/tls-gen tls-gen
+cd tls-gen/basic 
+
+# private key password
+make PASSWORD=bunnies >/dev/null 2>&1
+make verify >/dev/null 2>&1
+make info >/dev/null 2>&1
+ls -l ./result
+
+# Rename and move generated cert files
+cd ./result
+sudo mv server*key.pem server_key.pem
+sudo mv server*certificate.pem server_certificate.pem
+
+# Move cert files
+sudo mkdir /etc/ssl/certs/rabbitmq
+sudo mv server_key.pem  /etc/ssl/certs/rabbitmq/
+sudo mv server_certificate.pem /etc/ssl/certs/rabbitmq/
+sudo mv ca_certificate.pem /etc/ssl/certs/rabbitmq/
+
+# Set correct permissions
+sudo chmod 664 /etc/ssl/certs/rabbitmq/server_key.pem 
+sudo chmod 664 /etc/ssl/certs/rabbitmq/server_certificate.pem
+
+# Generate a random password
+rabbit_pass=$(openssl rand -base64 16)
+
+# Update RabbitMQ configuration file
+sudo tee /etc/rabbitmq/rabbitmq.conf <<EOF
+listeners.ssl.default = 5671
+
+ssl_options.cacertfile = /etc/ssl/certs/rabbitmq/ca_certificate.pem
+ssl_options.certfile   = /etc/ssl/certs/rabbitmq/server_certificate.pem
+ssl_options.keyfile    = /etc/ssl/certs/rabbitmq/server_key.pem
+ssl_options.verify     = verify_peer
+ssl_options.fail_if_no_peer_cert = true
+
+# Listen on localhost only
+stomp.listeners.tcp.1 = 127.0.0.1:61613
+stomp.listeners.tcp.2 = ::1:61613
+
+# default TLS-enabled port for STOMP connections
+stomp.listeners.ssl.1 = 61614
+
+# Change the default user and password
+stomp.default_user = koha_rabbitmq
+stomp.default_pass = $rabbit_pass
+EOF
+
+# Enable STOMP
+sudo rabbitmq-plugins enable rabbitmq_stomp
+
+# Update the RabbitMQ password and username in koha-conf.xml
+for instancename in "${instance[@]}"; do
+
+# Set the path to koha_conf.xml
+koha_conf=/etc/koha/sites/$instancename/koha-conf.xml
+
+sudo xmlstarlet edit -L --update 'yazgfs/config/message_broker/username' --value "koha_rabbitmq" $koha_conf
+sudo xmlstarlet edit -L --update 'yazgfs/config/message_broker/password' --value "$rabbit_pass" $koha_conf
+sudo xmlstarlet edit -L --update 'yazgfs/config/message_broker/port' --value "61614" $koha_conf
+
+done
+
+# Restart RabbitMQ service
+sudo systemctl restart rabbitmq-server.service
+
+if sudo openssl s_client -connect localhost:5671 -tls1_2 | grep -q "Verification: OK"; then
+  echo "TLS is enabled for RabbitMQ on port 5671."
+else
+  echo "TLS failed for RabbitMQ on port 5671."
+fi
+
+if sudo openssl s_client -connect localhost:61614 -tls1_2 | grep -q "Verification: OK";  then
+  echo "TLS is enabled for RabbitMQ on port 61614."
+else
+  echo "TLS failed for RabbitMQ on port 61614."
+fi
+
+# Clean up
+sudo rm -rf ~/tls-gen/
