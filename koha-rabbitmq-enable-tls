@@ -67,7 +67,6 @@ rabbit_pass=$(openssl rand -base64 16)
 
 # Update RabbitMQ configuration file
 sudo tee /etc/rabbitmq/rabbitmq.conf <<EOF
-listeners.ssl.default = 5671
 
 ssl_options.cacertfile = /etc/ssl/certs/rabbitmq/ca_certificate.pem
 ssl_options.certfile   = /etc/ssl/certs/rabbitmq/server_certificate.pem
@@ -105,10 +104,10 @@ done
 # Restart RabbitMQ service
 sudo systemctl restart rabbitmq-server.service
 
-if sudo openssl s_client -connect localhost:5671 -tls1_2 | grep -q "Verification: OK"; then
-  echo "TLS is enabled for RabbitMQ on port 5671."
+if sudo openssl s_client -connect localhost:61613 -tls1_2 | grep -q "Verification: OK"; then
+  echo "TLS is enabled for RabbitMQ on port 61613."
 else
-  echo "TLS failed for RabbitMQ on port 5671."
+  echo "TLS failed for RabbitMQ on port 61613."
 fi
 
 if sudo openssl s_client -connect localhost:61614 -tls1_2 | grep -q "Verification: OK";  then
