@@ -1,38 +1,69 @@
 #!/bin/bash
-# set -x
-# set -e
+set -e
 
-# Help text
-show_help() {
-  echo "Usage: enable-tls-for-rabbitmq.sh"
-  echo "Enable TLS for RabbitMQ by generating certificates and updating the configuration file."
-  echo ""
-  echo "Options:"
-  echo "  -h, --help       Display this help message."
+# Usage message
+usage() {
+  echo "Usage: enable-tls-for-rabbitmq.sh [-h] [-c <config-file>]"
+echo ""
+echo "Enable TLS for RabbitMQ by generating certificates and updating the configuration file."
+echo ""
+echo "Options:"
+echo "  -h, --help              Display this help message."
+echo "  -c, --config-file <file> Path to configuration file (default: ./config.sh)"
+echo ""
+echo "The configuration file should contain the following variables:"
+echo ""
+echo "  # Directory to store the generated certificates"
+echo "  CERT_DIR=\"/etc/ssl/certs/rabbitmq\""
+echo ""
+echo "  # Password for the private key"
+echo "  CERT_PASSWORD=\"bunnies\""
+echo ""
+echo "  # Name of the Koha instance(s) to configure RabbitMQ for"
+echo "  INSTANCE=(\"koha-1\" \"koha-2\")"
+echo ""
+echo "Example configuration file:"
+echo ""
+echo "  # config.sh"
+echo "  CERT_DIR=\"/etc/ssl/certs/rabbitmq\""
+echo "  CERT_PASSWORD=\"bunnies\""
+echo "  INSTANCE=(\"koha-1\" \"koha-2\")"
 }
 
-# Parse command line arguments
-while [[ $# -gt 0 ]]
-do
-key="$1"
+# Load configuration file or use default values
+CONFIG_FILE="./config.sh"
+if [[ $# -gt 0 ]]; then
+  while [[ $# -gt 0 ]]
+  do
+  key="$1"
 
-case $key in
-    -h|--help)
-    show_help
-    exit 0
-    ;;
-    *)
-    echo "Unknown option: $1"
-    echo ""
-    show_help
-    exit 1
-    ;;
-esac
-done
+  case $key in
+      -h|--help)
+      usage
+      exit 0
+      ;;
+      -c|--config-file)
+      CONFIG_FILE="$2"
+      shift
+      shift
+      ;;
+      *)
+      echo "Unknown option: $1"
+      echo ""
+      usage
+      exit 1
+      ;;
+  esac
+  done
+fi
 
+if [ ! -f "$CONFIG_FILE" ]; then
+  echo "Configuration file not found: $CONFIG_FILE"
+  exit 1
+fi
 
-# Prompt user for koha instance name
-read -p "Enter the name of the Koha instance(s), separated by a space, for which you are configuring RabbitMQ: " -a instance
+# Load configuration variables
+source "$CONFIG_FILE"
 
 # Backup the Koha database and configs in case of recovery
 sudo koha-run-backups >/dev/null 2>&1
@@ -41,8 +72,8 @@ sudo koha-run-backups >/dev/null 2>&1
 git clone https://github.com/rabbitmq/tls-gen tls-gen
 cd tls-gen/basic 
 
-# private key password
-make PASSWORD=bunnies >/dev/null 2>&1
+# Generate private key password
+make PASSWORD="$CERT_PASSWORD" >/dev/null 2>&1
 make verify >/dev/null 2>&1
 make info >/dev/null 2>&1
 ls -l ./result
@@ -53,24 +84,23 @@ sudo mv server*key.pem server_key.pem
 sudo mv server*certificate.pem server_certificate.pem
 
 # Move cert files
-sudo mkdir /etc/ssl/certs/rabbitmq
-sudo mv server_key.pem  /etc/ssl/certs/rabbitmq/
-sudo mv server_certificate.pem /etc/ssl/certs/rabbitmq/
-sudo mv ca_certificate.pem /etc/ssl/certs/rabbitmq/
+sudo mkdir -p "$CERT_DIR"
+sudo mv server_key.pem "$CERT_DIR"
+sudo mv server_certificate.pem "$CERT_DIR"
+sudo mv ca_certificate.pem "$CERT_DIR"
 
 # Set correct permissions
-sudo chmod 664 /etc/ssl/certs/rabbitmq/server_key.pem 
-sudo chmod 664 /etc/ssl/certs/rabbitmq/server_certificate.pem
+sudo chmod 664 "$CERT_DIR/server_key.pem"
+sudo chmod 664 "$CERT_DIR/server_certificate.pem"
 
 # Generate a random password
 rabbit_pass=$(openssl rand -base64 16)
 
 # Update RabbitMQ configuration file
 sudo tee /etc/rabbitmq/rabbitmq.conf <<EOF
-
-ssl_options.cacertfile = /etc/ssl/certs/rabbitmq/ca_certificate.pem
-ssl_options.certfile   = /etc/ssl/certs/rabbitmq/server_certificate.pem
-ssl_options.keyfile    = /etc/ssl/certs/rabbitmq/server_key.pem
+ssl_options.cacertfile = $CERT_DIR/ca_certificate.pem
+ssl_options.certfile   = $CERT_DIR/server_certificate.pem
+ssl_options.keyfile    = $CERT_DIR/server_key.pem
 ssl_options.verify     = verify_peer
 ssl_options.fail_if_no_peer_cert = true
 
@@ -90,30 +120,29 @@ EOF
 sudo rabbitmq-plugins enable rabbitmq_stomp
 
 # Update the RabbitMQ password and username in koha-conf.xml
-for instancename in "${instance[@]}"; do
+for instancename in "${INSTANCE[@]}"; do
 
-# Set the path to koha_conf.xml
-koha_conf=/etc/koha/sites/$instancename/koha-conf.xml
+    Set the path to koha_conf.xml
+    koha_conf="/etc/koha/sites/$instancename/koha-conf.xml"
 
-sudo xmlstarlet edit -L --update 'yazgfs/config/message_broker/username' --value "koha_rabbitmq" $koha_conf
-sudo xmlstarlet edit -L --update 'yazgfs/config/message_broker/password' --value "$rabbit_pass" $koha_conf
-sudo xmlstarlet edit -L --update 'yazgfs/config/message_broker/port' --value "61614" $koha_conf
-
+    sudo xmlstarlet edit -L --update 'yazgfs/config/message_broker/username' --value "koha_rabbitmq" $koha_conf
+    sudo xmlstarlet edit -L --update 'yazgfs/config/message_broker/password' --value "$rabbit_pass" $koha_conf
+    sudo xmlstarlet edit -L --update 'yazgfs/config/message_broker/port' --value "61614" $koha_conf
 done
 
 # Restart RabbitMQ service
 sudo systemctl restart rabbitmq-server.service
 
 if sudo openssl s_client -connect localhost:61613 -tls1_2 | grep -q "Verification: OK"; then
-  echo "TLS is enabled for RabbitMQ on port 61613."
+echo "TLS is enabled for RabbitMQ on port 61613."
 else
-  echo "TLS failed for RabbitMQ on port 61613."
+echo "TLS failed for RabbitMQ on port 61613."
 fi
 
-if sudo openssl s_client -connect localhost:61614 -tls1_2 | grep -q "Verification: OK";  then
-  echo "TLS is enabled for RabbitMQ on port 61614."
+if sudo openssl s_client -connect localhost:61614 -tls1_2 | grep -q "Verification: OK"; then
+echo "TLS is enabled for RabbitMQ on port 61614."
 else
-  echo "TLS failed for RabbitMQ on port 61614."
+echo "TLS failed for RabbitMQ on port 61614."
 fi
 
 # Clean up
