@@ -1,49 +1,144 @@
 #!/bin/bash
 
-# This script updates the URL of your database server
+# This script updates the URL of your Koha database server.
 
-echo "You have the following Koha instances running on this server:"
-echo $(koha-list)
-printf "\n"
+function usage() {
+  cat <<EOF
+Usage: $0 [OPTIONS]
 
-# Prompt the user for the name(s) of the Koha instance(s) they want to migrate 
-read -p "Enter the name of each  Koha instance database you want to migrate separated by a space:       " -a instance
+This script updates the URL of your Koha database server.
 
-# Prompt the user for the database endpoint
-read -p "Enter the URL/endpoint of your database server:   " hostname
+OPTIONS:
+  -i, --instance NAME1 NAME2...  Names of Koha instances to update.
+  -u, --username USERNAME       Username of the database root user.
+  -p, --password PASSWORD       Password of the database root user.
+  -h, --hostname HOSTNAME       Hostname or URL of the remote database server.
+  -c, --config-file FILEPATH    Path to a config file containing options.
+  -h, --help                    Display this help message.
+  
+EXAMPLES:
+  $0 --instance koha1 koha2 --hostname db.example.com --username root --password mypassword
+  $0 -c myconfig.ini
+  $0 -h
+  
+To use a config file, create a file with the following format and pass its path to the --config-file option:
 
+  # Example config file for update_db.sh
+  
+  [options]
+  instance = koha1 koha2
+  hostname = db.example.com
+  remotedbroot = root
+  remotedbpwd = mypassword
+EOF
+}
 
-# Prompt user for root user of the database server
-read -p "Enter the username of your database root user: " remotedbroot
+# Parse arguments
+while [[ $# -gt 0 ]]
+do
+key="$1"
 
-# Prompt user for password of the database server
-echo "Enter the password for the root user of your database server: "
-read -s remotedbpwd
+case $key in
+    -i|--instance)
+    instance="$2"
+    shift
+    shift
+    ;;
+    -u|--username)
+    remotedbroot="$2"
+    shift
+    shift
+    ;;
+    -p|--password)
+    remotedbpwd="$2"
+    shift
+    shift
+    ;;
+    -h|--hostname)
+    hostname="$2"
+    shift
+    shift
+    ;;
+    -c|--config-file)
+    config_file="$2"
+    shift
+    shift
+    ;;
+    -h|--help)
+    usage
+    exit 0
+    ;;
+    *)
+    echo "Unknown option: $1"
+    usage
+    exit 1
+    ;;
+esac
+done
 
+# If config file provided, load options from it
+if [[ -n "$config_file" ]]
+then
+  if [[ ! -f "$config_file" ]]
+  then
+    echo "Config file not found: $config_file"
+    usage
+    exit 1
+  fi
+  
+  instance=$(python3 -c "import configparser; config=configparser.ConfigParser(); config.read('$config_file'); print(config.get('options', 'instance'))")
+  hostname=$(python3 -c "import configparser; config=configparser.ConfigParser(); config.read('$config_file'); print(config.get('options', 'hostname'))")
+  remotedbroot=$(python3 -c "import configparser; config=configparser.ConfigParser(); config.read('$config_file'); print(config.get('options', 'remotedbroot'))")
+  remotedbpwd=$(python3 -c "import configparser; config=configparser.ConfigParser(); config.read('$config_file'); print(config.get('options', 'remotedbpwd'))")
+fi
+
+# Prompt for missing options
+if [[ -z "$instance" ]]
+then
+  read -p "Enter the name(s) of the Koha instance(s) you want to migrate separated by a space: " -a instance
+fi
+
+if [[ -z "$hostname" ]]
+then
+  read -p "Enter the URL/endpoint of your database server: " hostname
+fi
+
+if [[ -z "$remotedbroot" ]]
+then
+  read -p "Enter the username of your database root user: " remotedbroot
+fi
+
+if [[ -z "$remotedbpwd" ]]
+then
+  echo "Enter the password for the root user of your database server: "
+  read -s remotedbpwd
+fi
 
 # Enable and start  Koha instances
 for instancename in "${instance[@]}"; do
 
-# Set the path to koha_conf.xml
-koha_conf=/etc/koha/sites/$instancename/koha-conf.xml
+  # Set the path to koha_conf.xml
+  koha_conf=/etc/koha/sites/$instancename/koha-conf.xml
 
-#Backup the koha-conf.xml file
-sudo rsync -a $koha_conf $koha_conf.$(date +%d_%b_%Hh%M_%Z)
+  # Backup the koha-conf.xml file
+  sudo rsync -a $koha_conf $koha_conf.$(date +%d_%b_%Hh%M_%Z)
 
-# Retrieve the Koha user password in koha-conf.xml
-remotekohadbpwd=$(sudo xmlstarlet sel -t -v 'yazgfs/config/pass' $koha_conf)
+  # Retrieve the Koha user password in koha-conf.xml
+  remotekohadbpwd=$(sudo xmlstarlet sel -t -v 'yazgfs/config/pass' $koha_conf)
 
-echo "The current DB hostname for $instancename is $(sudo xmlstarlet sel -t -v 'yazgfs/config/hostname' $koha_conf)"
+  echo "The current DB hostname for $instancename is $(sudo xmlstarlet sel -t -v 'yazgfs/config/hostname' $koha_conf)"
 
-# Replace database endpoint with remote db endpoint
-sudo xmlstarlet edit -L --update 'yazgfs/config/hostname' --value "$hostname" $koha_conf
+  # Replace database endpoint with remote db endpoint
+  sudo xmlstarlet edit -L --update 'yazgfs/config/hostname' --value "$hostname" $koha_conf
 
-echo "The new  DB hostname for $instancename is $(sudo xmlstarlet sel -t -v 'yazgfs/config/hostname' $koha_conf)"
+  echo "The new  DB hostname for $instancename is $(sudo xmlstarlet sel -t -v 'yazgfs/config/hostname' $koha_conf)"
 
 done
+
 # Backup the koha-common.cnf and debian.cnf file
 sudo rsync -a /etc/mysql/debian.cnf /etc/mysql/debian.cnf.$(date +%d_%b_%Hh%M_%Z)
 sudo rsync -a /etc/mysql/koha-common.cnf /etc/mysql/koha-common.cnf.$(date +%d_%b_%Hh%M_%Z)
+
 # Update koha-common.cnf with config for remote db
 echo "
 [client]
@@ -70,7 +165,7 @@ host     = ${hostname}
 user     = ${remotedbroot}
 password = ${remotedbpwd}
 socket   = /var/run/mysqld/mysqld.sock
-" | sudo tee /etc/mysql/koha-common.cnf >/dev/null
+" | sudo tee /etc/mysql/debian.cnf >/dev/null
 
 # Reload koha-common and memcached
 sudo systemctl restart koha-common.service memcached.service
