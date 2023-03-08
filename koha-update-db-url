@@ -1,0 +1,77 @@
+#!/bin/bash
+
+# This script updates the URL of your database server
+
+echo "You have the following Koha instances running on this server:"
+echo $(koha-list)
+printf "\n"
+
+# Prompt the user for the name(s) of the Koha instance(s) they want to migrate 
+read -p "Enter the name of each  Koha instance database you want to migrate separated by a space:       " -a instance
+
+# Prompt the user for the database endpoint
+read -p "Enter the URL/endpoint of your database server:   " hostname
+
+
+# Prompt user for root user of the database server
+read -p "Enter the username of your database root user: " remotedbroot
+
+# Prompt user for password of the database server
+echo "Enter the password for the root user of your database server: "
+read -s remotedbpwd
+
+
+# Enable and start  Koha instances
+for instancename in "${instance[@]}"; do
+
+# Set the path to koha_conf.xml
+koha_conf=/etc/koha/sites/$instancename/koha-conf.xml
+
+#Backup the koha-conf.xml file
+sudo rsync -a $koha_conf $koha_conf.$(date +%d_%b_%Hh%M_%Z)
+
+# Retrieve the Koha user password in koha-conf.xml
+remotekohadbpwd=$(sudo xmlstarlet sel -t -v 'yazgfs/config/pass' $koha_conf)
+
+echo "The current DB hostname for $instancename is $(sudo xmlstarlet sel -t -v 'yazgfs/config/hostname' $koha_conf)"
+
+# Replace database endpoint with remote db endpoint
+sudo xmlstarlet edit -L --update 'yazgfs/config/hostname' --value "$hostname" $koha_conf
+
+echo "The new  DB hostname for $instancename is $(sudo xmlstarlet sel -t -v 'yazgfs/config/hostname' $koha_conf)"
+
+done
+# Backup the koha-common.cnf and debian.cnf file
+sudo rsync -a /etc/mysql/debian.cnf /etc/mysql/debian.cnf.$(date +%d_%b_%Hh%M_%Z)
+sudo rsync -a /etc/mysql/koha-common.cnf /etc/mysql/koha-common.cnf.$(date +%d_%b_%Hh%M_%Z)
+# Update koha-common.cnf with config for remote db
+echo "
+[client]
+host     = ${hostname}
+user     = ${remotedbroot}
+password = ${remotedbpwd}
+socket   = /var/run/mysqld/mysqld.sock
+[mysql_upgrade]
+host     = ${hostname}
+user     = ${remotedbroot}
+password = ${remotedbpwd}
+socket   = /var/run/mysqld/mysqld.sock
+" | sudo tee /etc/mysql/koha-common.cnf >/dev/null
+
+# Update debian.cnf with config for remote db
+echo "
+[client]
+host     = ${hostname}
+user     = ${remotedbroot}
+password = ${remotedbpwd}
+socket   = /var/run/mysqld/mysqld.sock
+[mysql_upgrade]
+host     = ${hostname}
+user     = ${remotedbroot}
+password = ${remotedbpwd}
+socket   = /var/run/mysqld/mysqld.sock
+" | sudo tee /etc/mysql/koha-common.cnf >/dev/null
+
+# Reload koha-common and memcached
+sudo systemctl restart koha-common.service memcached.service
+echo "Success"
