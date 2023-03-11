@@ -99,12 +99,12 @@ function restore_instance() {
 function drop_foreign_key() {
   local instance_id="$1"
   while true; do
-    read -rp "Drop and recreate the foreign key 'r_guarantor' for ${instance_id}? " response
+    read -rp "Drop and recreate the foreign key 'r_guarantor' for ${instance_id}? (y/n): " response
     case "${response}" in
       [yY][eE][sS]|[yY])
         # Backup database
         while true; do
-          read -rp "Backup all your Koha instances? This step is strongly recommended. " response
+          read -rp "Backup all your Koha instances? This step is strongly recommended. (y/n): " response
           case "${response}" in
             [yY][eE][sS]|[yY])
               backup_instance "${instance_id}"
