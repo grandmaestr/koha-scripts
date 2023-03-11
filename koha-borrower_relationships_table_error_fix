@@ -122,6 +122,7 @@ function drop_foreign_key() {
               ;;
             [nN][oO]|[nN])
               echo "Skipping backup"
+              break
               ;;
             [qQ][uU][iI][tT]|[qQ])
               exit
