@@ -2,7 +2,7 @@
 # ------------------------------------------------------------------
 # Author: Lennon Mazonde
 # GitHub: @grandmaestr
-# Title: koha-erm-upgrade-fix
+# Title: koha-borrower-relationships-error-fix
 # Description: 
 # You may encounter the following error while upgrading from Koha 22.06 (or earlier) to 22.11 (or later):
 ##################
@@ -24,7 +24,7 @@
 
 # Script configuration
 VERSION="0.1.1"
-SUBJECT="koha-borrower_relationships_table_error_fix"
+SUBJECT="koha-borrower-relationships-error-fix"
 SCRIPT_NAME="$(basename "${0}")"
 LOCK_FILE="/tmp/${SUBJECT}.lock"
 REQUIRED_TOOLS=("sudo" "koha-run-backups" "koha-worker" "koha-plack" "koha-zebra" "koha-remove" "deluser" "systemctl" "koha-restore" "koha-mysql" "koha-upgrade-schema")
