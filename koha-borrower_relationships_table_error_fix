@@ -57,9 +57,32 @@ function check_requirements() {
 function backup_instance() {
   local instance_id="$1"
   echo "Running backup for ${instance_id}. Please be patient."
-  sudo koha-run-backups "${instance_id}" >/dev/null 2>&1
-  echo "Backup for ${instance_id} complete."
+  
+  local log_file="/var/log/koha/${instance_id}.log"
+  sudo koha-run-backups "${instance_id}" >"${log_file}" 2>&1 &
+  local pid=$!
+
+  local bar_width=50
+  local i=0
+  local chars="/-\|"
+  
+  while kill -0 ${pid} >/dev/null 2>&1; do
+    local progress=$((${i} * 100 / ${bar_width}))
+    local bar=$(printf "%${i}s" | tr ' ' '#')
+    printf "[%-*s] %d%% %c\r" ${bar_width} "${bar}" ${progress} "${chars:${i++%${#chars}}:1}"
+    sleep 0.1
+  done
+  
+  wait ${pid}
+  local status=$?
+  
+  if [[ ${status} -eq 0 ]]; then
+    echo "Backup for ${instance_id} complete."
+  else
+    echo "Error: backup for ${instance_id} failed. See ${log_file} for details."
+  fi
 }
+
 
 function restore_instance() {
   local instance_id="$1"
