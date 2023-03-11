@@ -114,7 +114,7 @@ then
   read -s remotedbpwd
 fi
 
-# Enable and start  Koha instances
+# Enable and start Koha instances
 for instancename in "${instance[@]}"; do
 
   # Set the path to koha_conf.xml
@@ -133,6 +133,12 @@ for instancename in "${instance[@]}"; do
 
   echo "The new  DB hostname for $instancename is $(sudo xmlstarlet sel -t -v 'yazgfs/config/hostname' $koha_conf)"
 
+# Recreate DB user
+mysql -h ${hostname} -u ${remotedbroot} -p${remotedbpwd} -e "
+DROP USER IF EXISTS 'koha_${instancename}'@'%';
+CREATE USER IF NOT EXISTS 'koha_${instancename}'@'%' IDENTIFIED BY '${remotekohadbpwd}';
+GRANT ALL PRIVILEGES ON koha_${instancename}.* to 'koha_${instancename}'@'%';
+FLUSH PRIVILEGES;"
 done
 
 # Backup the koha-common.cnf and debian.cnf file
