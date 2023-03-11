@@ -239,4 +239,4 @@ Error "Failed to restart Apache"
 exit 1
 fi
 
-echo "${GREEN}All done.${NC}"
+printf "${GREEN}Update complete.${NC}\n"
