@@ -112,7 +112,7 @@ for val in "${instanceid[@]}"; do
   CheckConfigFile "$val"
 
   # Set path to koha-conf.xml
-  local configpath="/etc/koha/sites/$val/koha-conf.xml"
+  configpath="/etc/koha/sites/$val/koha-conf.xml"
 
   # Check if encryption key element exists
 	if [ "$(sudo xmlstarlet sel -t -v "count(yazgfs/config/encryption_key)" "$configpath")" -eq "0" ]; then
