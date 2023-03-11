@@ -220,7 +220,7 @@ for instance_id in "${instance_ids[@]}"; do
 				break
 				;;
 			[nN][oO]|[nN])
-				echo "No changes have been made."
+				printf "${GREEN}No changes have been made.${NC}\n"
 				break
 				;;
 			[qQ][uU][iI][tT]|[qQ])
@@ -239,4 +239,3 @@ Error "Failed to restart Apache"
 exit 1
 fi
 
-printf "${GREEN}Update complete.${NC}\n"
