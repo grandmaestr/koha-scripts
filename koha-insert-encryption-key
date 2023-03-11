@@ -2,7 +2,7 @@
 # ------------------------------------------------------------------
 # Author: Lennon Mazonde
 # GitHub: @grandmaestr
-# Title: koha-config-encryption
+# Title: koha-insert-encryption-key
 # Description: 
 # 	This script inserts a missing encryption_key element in koha-conf.xml or updates it if one already exists.
 # 	You can copy and paste this script onto your server and make it executable by running "chmod a+x /path/to/file_name"
