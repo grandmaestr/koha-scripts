@@ -104,6 +104,9 @@ fi
 trap "rm -f $LOCK_FILE" EXIT
 touch "$LOCK_FILE"
 
+# Set path to koha-conf.xml
+configpath=""
+
 # Body
 for val in "${instanceid[@]}"; do
   CheckConfigFile "$val"
