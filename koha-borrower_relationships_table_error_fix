@@ -29,6 +29,11 @@ SCRIPT_NAME="$(basename "${0}")"
 LOCK_FILE="/tmp/${SUBJECT}.lock"
 REQUIRED_TOOLS=("sudo" "koha-run-backups" "koha-worker" "koha-plack" "koha-zebra" "koha-remove" "deluser" "systemctl" "koha-restore" "koha-mysql" "koha-upgrade-schema")
 
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+NC='\033[0m' # No Color
+
 # Functions
 function help_message() {
   cat <<EOF
@@ -48,7 +53,7 @@ EOF
 function check_requirements() {
   for tool in "${REQUIRED_TOOLS[@]}"; do
     if ! command -v "${tool}" >/dev/null 2>&1; then
-      echo "Error: ${tool} is not installed or is not in the system path." >&2
+      echo -e "${RED}Error: ${tool} is not installed or is not in the system path.${NC}" >&2
       exit 1
     fi
   done
@@ -56,7 +61,7 @@ function check_requirements() {
 
 function backup_instance() {
   local instance_id="$1"
-  echo "Running backup for ${instance_id}. Please be patient."
+  echo -e "${GREEN}Running backup for ${instance_id}. Please be patient.${NC}"
   
   local log_file="/var/log/koha/$(basename "$0" .sh)_${instance_id}.log"
   sudo touch "${log_file}"
@@ -64,13 +69,11 @@ function backup_instance() {
   local status=$?
   
   if [[ ${status} -eq 0 ]]; then
-    echo "Backup for ${instance_id} complete."
+    echo -e "${GREEN}Backup for ${instance_id} complete.${NC}"
   else
-    echo "Error: backup for ${instance_id} failed. See ${log_file} for details."
+    echo -e "${RED}Error: backup for ${instance_id} failed. See ${log_file} for details.${NC}"
   fi
 }
-
-
 
 function restore_instance() {
   local instance_id="$1"
@@ -93,7 +96,6 @@ function restore_instance() {
   sudo koha-plack --start "${instance_id}"
   sudo koha-zebra --start "${instance_id}"
 }
-
 function drop_foreign_key() {
   local instance_id="$1"
   while true; do
@@ -109,14 +111,14 @@ function drop_foreign_key() {
               break
               ;;
             [nN][oO]|[nN])
-              echo "Skipping backup"
+              echo -e "${GREEN}Skipping backup${NC}"
               break
               ;;
             [qQ][uU][iI][tT]|[qQ])
               exit
               ;;
             *)
-              echo "Invalid response. Try again."
+              echo -e "${RED}Invalid response. Try again.${NC}"
               ;;
           esac
         done
@@ -129,19 +131,19 @@ function drop_foreign_key() {
 
         # Add the foreign key
         sudo koha-mysql "${instance_id}" -Nse "ALTER TABLE borrower_relationships ADD CONSTRAINT r_guarantor FOREIGN KEY (guarantor_id) REFERENCES borrowers (borrowernumber) ON DELETE CASCADE ON UPDATE CASCADE;"
-        echo "The foreign key drop and recreate operation for ${instance_id} is complete. If the koha-upgrade-schema command above produces errors, you will need to resolve those errors before you can successfully complete the upgrade process."
+        echo -e "${GREEN}The foreign key drop and recreate operation for ${instance_id} is complete. If the koha-upgrade-schema command above produces errors, you will need to resolve those errors before you can successfully complete the upgrade process.${NC}"
         sleep 1s
         break
         ;;
       [nN][oO]|[nN])
-        echo "No changes have been made."
+        echo -e "${GREEN}No changes have been made.${NC}"
         break
         ;;
       [qQ][uU][iI][tT]|[qQ])
         exit
         ;;
       *)
-        echo "Invalid response. Try again."
+        echo -e "${RED}Invalid response. Try again.${NC}"
         ;;
     esac
   done
@@ -158,7 +160,7 @@ while getopts "hi:v" option; do
       instance_ids+=("${OPTARG}")
       ;;
     v)
-      echo "Version ${VERSION}"
+      echo -e "${GREEN}Version ${VERSION}${NC}"
       exit 0
       ;;
     h)
@@ -166,7 +168,7 @@ while getopts "hi:v" option; do
       exit 0
       ;;
     *)
-      echo "Invalid option: -${OPTARG}" >&2
+      echo -e "${RED}Invalid option: -${OPTARG}${NC}" >&2
       help_message >&2
       exit 1
       ;;
@@ -176,14 +178,14 @@ shift $((OPTIND - 1))
 
 # Check that instance_ids is not empty
 if [[ ${#instance_ids[@]} -eq 0 ]]; then
-  echo "Error: you must specify at least one instance id." >&2
+  echo -e "${RED}Error: you must specify at least one instance id.${NC}" >&2
   help_message >&2
   exit 1
 fi
 
 # Ensure that only one instance is being operated on at a time
 if [[ -f "${LOCK_FILE}" ]]; then
-  echo "Error: ${SCRIPT_NAME} is already running." >&2
+  echo -e "${RED}Error: ${SCRIPT_NAME} is already running.${NC}" >&2
   exit 1
 fi
 trap "rm -f ${LOCK_FILE}" EXIT
@@ -195,4 +197,3 @@ for instance_id in "${instance_ids[@]}"; do
 done
 
 exit 0
-
