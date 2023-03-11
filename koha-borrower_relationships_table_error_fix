@@ -23,7 +23,7 @@
 # ------------------------------------------------------------------
 
 # Script configuration
-VERSION="0.1.0"
+VERSION="0.1.1"
 SUBJECT="koha-borrower_relationships_table_error_fix"
 SCRIPT_NAME="$(basename "${0}")"
 LOCK_FILE="/tmp/${SUBJECT}.lock"
