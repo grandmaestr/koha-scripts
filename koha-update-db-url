@@ -12,7 +12,7 @@ OPTIONS:
   -i, --instance NAME1 NAME2...  Names of Koha instances to update.
   -u, --username USERNAME       Username of the database root user.
   -p, --password PASSWORD       Password of the database root user.
-  -h, --hostname HOSTNAME       Hostname or URL of the remote database server.
+  -h, --hostname HOSTNAME       Hostname or URL of the new database server.
   -c, --config-file FILEPATH    Path to a config file containing options.
   -h, --help                    Display this help message.
   
@@ -28,8 +28,8 @@ To use a config file, create a file with the following format and pass its path 
   [options]
   instance = koha1 koha2
   hostname = db.example.com
-  remotedbroot = root
-  remotedbpwd = mypassword
+  new_db_root = root
+  new_db_pass = mypassword
 EOF
 }
 
@@ -45,12 +45,12 @@ case $key in
     shift
     ;;
     -u|--username)
-    remotedbroot="$2"
+    new_db_root="$2"
     shift
     shift
     ;;
     -p|--password)
-    remotedbpwd="$2"
+    new_db_pass="$2"
     shift
     shift
     ;;
@@ -88,8 +88,8 @@ then
   
   instance=$(python3 -c "import configparser; config=configparser.ConfigParser(); config.read('$config_file'); print(config.get('options', 'instance'))")
   hostname=$(python3 -c "import configparser; config=configparser.ConfigParser(); config.read('$config_file'); print(config.get('options', 'hostname'))")
-  remotedbroot=$(python3 -c "import configparser; config=configparser.ConfigParser(); config.read('$config_file'); print(config.get('options', 'remotedbroot'))")
-  remotedbpwd=$(python3 -c "import configparser; config=configparser.ConfigParser(); config.read('$config_file'); print(config.get('options', 'remotedbpwd'))")
+  new_db_root=$(python3 -c "import configparser; config=configparser.ConfigParser(); config.read('$config_file'); print(config.get('options', 'new_db_root'))")
+  new_db_pass=$(python3 -c "import configparser; config=configparser.ConfigParser(); config.read('$config_file'); print(config.get('options', 'new_db_pass'))")
 fi
 
 # Prompt for missing options
@@ -103,15 +103,15 @@ then
   read -p "Enter the URL/endpoint of your database server: " hostname
 fi
 
-if [[ -z "$remotedbroot" ]]
+if [[ -z "$new_db_root" ]]
 then
-  read -p "Enter the username of your database root user: " remotedbroot
+  read -p "Enter the username of your database root user: " new_db_root
 fi
 
-if [[ -z "$remotedbpwd" ]]
+if [[ -z "$new_db_pass" ]]
 then
   echo "Enter the password for the root user of your database server: "
-  read -s remotedbpwd
+  read -s new_db_pass
 fi
 
 # Enable and start Koha instances
@@ -124,7 +124,7 @@ for instancename in "${instance[@]}"; do
   sudo rsync -a $koha_conf $koha_conf.$(date +%d_%b_%Hh%M_%Z)
 
   # Retrieve the Koha user password in koha-conf.xml
-  remotekohadbpwd=$(sudo xmlstarlet sel -t -v 'yazgfs/config/pass' $koha_conf)
+  kohadbpwd=$(sudo xmlstarlet sel -t -v 'yazgfs/config/pass' $koha_conf)
 
   echo "The current DB hostname for $instancename is $(sudo xmlstarlet sel -t -v 'yazgfs/config/hostname' $koha_conf)"
 
@@ -134,9 +134,9 @@ for instancename in "${instance[@]}"; do
   echo "The new  DB hostname for $instancename is $(sudo xmlstarlet sel -t -v 'yazgfs/config/hostname' $koha_conf)"
 
 # Recreate DB user
-mysql -h ${hostname} -u ${remotedbroot} -p${remotedbpwd} -e "
+mysql -h ${hostname} -u ${new_db_root} -p${new_db_pass} -e "
 DROP USER IF EXISTS 'koha_${instancename}'@'%';
-CREATE USER IF NOT EXISTS 'koha_${instancename}'@'%' IDENTIFIED BY '${remotekohadbpwd}';
+CREATE USER IF NOT EXISTS 'koha_${instancename}'@'%' IDENTIFIED BY '${kohadbpwd}';
 GRANT ALL PRIVILEGES ON koha_${instancename}.* to 'koha_${instancename}'@'%';
 FLUSH PRIVILEGES;"
 done
@@ -149,13 +149,13 @@ sudo rsync -a /etc/mysql/koha-common.cnf /etc/mysql/koha-common.cnf.$(date +%d_%
 echo "
 [client]
 host     = ${hostname}
-user     = ${remotedbroot}
-password = ${remotedbpwd}
+user     = ${new_db_root}
+password = ${new_db_pass}
 socket   = /var/run/mysqld/mysqld.sock
 [mysql_upgrade]
 host     = ${hostname}
-user     = ${remotedbroot}
-password = ${remotedbpwd}
+user     = ${new_db_root}
+password = ${new_db_pass}
 socket   = /var/run/mysqld/mysqld.sock
 " | sudo tee /etc/mysql/koha-common.cnf >/dev/null
 
@@ -163,13 +163,13 @@ socket   = /var/run/mysqld/mysqld.sock
 echo "
 [client]
 host     = ${hostname}
-user     = ${remotedbroot}
-password = ${remotedbpwd}
+user     = ${new_db_root}
+password = ${new_db_pass}
 socket   = /var/run/mysqld/mysqld.sock
 [mysql_upgrade]
 host     = ${hostname}
-user     = ${remotedbroot}
-password = ${remotedbpwd}
+user     = ${new_db_root}
+password = ${new_db_pass}
 socket   = /var/run/mysqld/mysqld.sock
 " | sudo tee /etc/mysql/debian.cnf >/dev/null
 
