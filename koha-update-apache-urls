@@ -147,7 +147,7 @@ for instance_id in "${instance_ids[@]}"; do
     staff=""
 
     while true; do
-        read -rp "Update $config_path? y(es)/n(o)/q(uit): " response 
+        read -rp "Update $config_path? (yes/no/quit): " response 
 
         case $response in
             [yY][eE][sS]|[yY])
@@ -155,10 +155,10 @@ for instance_id in "${instance_ids[@]}"; do
                 Backup "$instance_id" "$config_path"
 
                 # Prompt user to enter their Staff URL
-                read -            -rp "New Staff/admin page url for $instance_id (Leave out http:// or https://): " staffdomain
+                read -rp "New Staff/admin page url for $instance_id (Leave out the leading http:// or https://): " staffdomain
 
 				# Prompt user to enter their OPAC domain/subdomain
-				read -rp "New OPAC url for $instance_id (Leave out http:// or https://): " opacdomain
+				read -rp "New OPAC url for $instance_id (Leave out the leading http:// or https://): " opacdomain
 
 				# Strip out leading http(s):// and set to variable
 				staffurl=$(echo "$staffdomain" | sed "s|.*://||; s|/.*||" )
@@ -197,7 +197,7 @@ for instance_id in "${instance_ids[@]}"; do
 
 				# Prompt to restore original config
 				while true; do
-					read -rp "Is the config file above correct?: y(es)/n(o)/q(uit) " response 
+					read -rp "Is the config file above correct?: (yes/no/quit) " response 
 					case $response in
 						[yY][eE][sS]|[yY])
 							break
