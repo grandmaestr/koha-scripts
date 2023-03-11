@@ -32,7 +32,6 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 # ------------------------------------------------------------------
-
 #!/bin/bash
 
 # Script version
@@ -146,24 +145,17 @@ for instance_id in "${instance_ids[@]}"; do
     # Set initial variables to null
     opac=""
     staff=""
-    restore_original_config="no"
 
     while true; do
         read -rp "Update $config_path? (yes/no/quit): " response 
 
         case $response in
             [yY][eE][sS]|[yY])
-                if [[ "$restore_original_config" == "yes" ]]; then
-                    # Restore the original config
-                    Restore "$config_backup" "$config_path"
-                    restore_original_config="no"
-                    continue
-                fi
-				# Backup original config
-				Backup "$instance_id" "$config_path"
+                # Backup original config
+                Backup "$instance_id" "$config_path"
 
-				# Prompt user to enter their Staff URL
-				read -rp "New Staff/admin page url for $instance_id (Leave out the leading http:// or https://): " staffdomain
+                # Prompt user to enter their Staff URL
+                read -rp "New Staff/admin page url for $instance_id (Leave out the leading http:// or https://): " staffdomain
 
 				# Prompt user to enter their OPAC domain/subdomain
 				read -rp "New OPAC url for $instance_id (Leave out the leading http:// or https://): " opacdomain
@@ -182,8 +174,8 @@ for instance_id in "${instance_ids[@]}"; do
 				else
 					if ! sudo sed -i "/ServerName*/c\\   ServerName $staffurl" "$config_path"; then
 						Error "Failed to set the ServerName to $staffurl in $config_path"
-						restore_original_config="yes"
-						continue
+						Restore "$config_backup" "$config_path"
+						break
 					fi
 				fi
 
@@ -193,8 +185,8 @@ for instance_id in "${instance_ids[@]}"; do
 				else
 					if ! sudo sed -i "0,/ServerName $staffurl/s//ServerName $opacurl/" "$config_path"; then
 						Error "Failed to set the ServerName to $opacurl in $config_path"
-						restore_original_config="yes"
-						continue
+						Restore "$config_backup" "$config_path"
+						break
 					fi
 				fi
 
@@ -203,15 +195,18 @@ for instance_id in "${instance_ids[@]}"; do
 				sudo cat "$config_path"
 				printf "${GREEN}##########################End Config############################${NC}\n\n"
 
-				# Prompt to restore original config or restart
+				# Prompt to restore original config
 				while true; do
-					read -rp "Do you want to restore the original config or restart the config file update? (restore/restart/quit): " response 
+					read -rp "Is the config file above correct?: (yes/no/quit) " response 
 					case $response in
-						[rR][eE][sS][tT][aA][rR][tT]|[rR])
-							break 2
+						[yY][eE][sS]|[yY])
+							break
 							;;
-						[rR][eE][sS][tT][oO][rR][eE]|[rR])
-							restore_original_config="yes"
+						[nN][oO]|[nN])
+							printf "${YELLOW}Restoring original config...${NC}\n"
+							Restore "$config_backup" "$config_path"
+							sleep 1s
+							printf "${GREEN}Done.${NC}\n"
 							break
 							;;
 						[qQ][uU][iI][tT]|[qQ])
@@ -222,6 +217,7 @@ for instance_id in "${instance_ids[@]}"; do
 							;;
 					esac
 				done
+				break
 				;;
 			[nN][oO]|[nN])
 				printf "${GREEN}No changes have been made.${NC}\n"
@@ -236,3 +232,10 @@ for instance_id in "${instance_ids[@]}"; do
 		esac
 	done
 done
+
+# Restart Apache
+if ! sudo systemctl restart apache2; then
+Error "Failed to restart Apache"
+exit 1
+fi
+
