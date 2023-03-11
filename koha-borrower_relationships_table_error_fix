@@ -58,21 +58,22 @@ function backup_instance() {
   local instance_id="$1"
   echo "Running backup for ${instance_id}. Please be patient."
   
-  local log_file="/var/log/koha/${instance_id}.log"
-  sudo koha-run-backups "${instance_id}" >"${log_file}" 2>&1 &
-  local pid=$!
+        local log_file="/var/log/koha/$(basename $0)_${instance_id}.log"
+        sudo touch "${log_file}"
+        sudo koha-run-backups "${instance_id}" 2>&1 | sudo tee -a "${log_file}" >/dev/null &
+        local pid=$!
 
   local bar_width=50
   local i=0
   local chars="/-\|"
   
   while kill -0 ${pid} >/dev/null 2>&1; do
-    local progress=$((${i} * 100 / ${bar_width}))
-    local bar=$(printf "%${i}s" | tr ' ' '#')
-    printf "[%-*s] %d%% %c\r" ${bar_width} "${bar}" ${progress} "${chars:${i++%${#chars}}:1}"
-    sleep 0.1
+        local progress=$((${i} * 100 / ${bar_width}))
+        local bar=$(printf "%${i}s" | tr ' ' '#')
+        printf "[%-*s] %d%% %c\r" ${bar_width} "${bar}" ${progress} "${chars:${i++%${#chars}}:1}"
+        sleep 0.1
   done
-  
+
   wait ${pid}
   local status=$?
   
