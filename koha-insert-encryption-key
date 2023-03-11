@@ -11,11 +11,23 @@
 # 	You can modify or use this script however you like but I'd really appreciate it if you give me a shout out or attribution if you post it elsewhere :)
 
 # ------------------------------------------------------------------
-set -e
-# Script version
-VERSION=0.1.0
 # Set the name of the script to variable
 SCRIPT_NAME="$(basename ${0})"
+
+# Get the current version number from a VERSION file in the root of the repository
+VERSION=$(cat VERSION)
+
+# Get the type of commit
+COMMIT_MESSAGE=$(git log --pretty=format:'%s' -1)
+if [[ $COMMIT_MESSAGE =~ ^Merge\ branch\ .*$ || $COMMIT_MESSAGE =~ ^.*\ \(pull\ request\):\ Merge\ .*$ ]]; then
+    # If it's a merge or pull request, increment the major version number
+    MAJOR_VERSION=$(echo $VERSION | cut -d. -f1)
+    NEW_VERSION="$((MAJOR_VERSION+1)).0"
+else
+    # Otherwise, increment the minor version number
+    MINOR_VERSION=$(echo $VERSION | cut -d. -f2)
+    NEW_VERSION="$(echo $VERSION | cut -d. -f1).$((MINOR_VERSION+1))"
+fi
 
 # ------Help--------------------------------------------------------
 Help(){
