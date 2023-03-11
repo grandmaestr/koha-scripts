@@ -10,166 +10,121 @@
 # 	This script is interactive, so you'll be prompted for input at various stages.
 # 	You can modify or use this script however you like but I'd really appreciate it if you give me a shout out or attribution if you post it elsewhere :)
 
-# ------------------------------------------------------------------
-# Script version
-VERSION=0.1.2
-# Set the name of the script to variable
-SCRIPT_NAME="$(basename ${0})"
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[0;33m'
+NC='\033[0m'
 
-# ------Help--------------------------------------------------------
-Help(){
-    # Display Help
-    cat <<EOF
-        Usage: $SCRIPT_NAME -ihv args
+# Script name and version
+SCRIPT_NAME=$(basename "$0")
+VERSION="1.0.0"
 
-        Options:
-        i - instanceid. The name of the koha instance. One instance id per option.
-        h - help. Print this help.
-        v - version. Print the script version.
-
-        Example:
-        To define a new staff or OPAC url for a single instance called "library", run:
-            $SCRIPT_NAME -i library
-        For multiple instances, run
-                $SCRIPT_NAME -i library1 -i library2 ...
-EOF
+# Help function
+Help() {
+  echo -e "Usage: ${SCRIPT_NAME} [-i instanceid] [-h] [-v]\n"
+  echo -e "Options:"
+  echo -e "${YELLOW} -i${NC}    The name of the Koha instance. One instance id per option."
+  echo -e "${YELLOW} -h${NC}    Print this help."
+  echo -e "${YELLOW} -v${NC}    Print the script version.\n"
+  echo -e "Examples:"
+  echo -e "To define a new staff or OPAC URL for a single instance called ${GREEN}\"library\"${NC}, run:"
+  echo -e "  ${GREEN}${SCRIPT_NAME} -i library${NC}"
+  echo -e "For multiple instances, run:"
+  echo -e "  ${GREEN}${SCRIPT_NAME} -i library1 -i library2 ...${NC}"
 }
-# --- Options processing -------------------------------------------
-if [ $# == 0 ] ; then
-    Help
-    exit 1;
+
+# Options processing
+while getopts ":i:vh" optname; do
+  case "$optname" in
+    v)
+      echo "Version $VERSION"
+      exit 0;
+      ;;
+    i)  
+      instanceid+=("$OPTARG")
+      ;;
+    h)
+      Help
+      exit 0;
+      ;;
+    \?)
+      echo -e "${RED}Unknown option $OPTARG${NC}"
+      Help
+      exit 1;
+      ;;
+    :)
+      echo -e "${RED}Error: you must provide at least one instance name for option -$OPTARG${NC}"
+      Help
+      exit 1;
+      ;;
+    *)
+      echo -e "${RED}Unknown error while processing options${NC}"
+      Help
+      exit 1;
+      ;;
+  esac
+done
+
+# Check if instanceid array is empty
+if [ ${#instanceid[@]} -eq 0 ]; then
+  echo -e "${RED}Error: you must provide at least one instance name${NC}"
+  Help
+  exit 1
 fi
 
-while getopts ":i:vh" optname; do
-    case "$optname" in
-      v)
-        echo "Version $VERSION"
-        exit 0;
-        ;;
-      i)  
-        instanceid+=("$OPTARG")
-        ;;
-      h)
-        Help
-        exit 0;
-        ;;
-      \?)
-        echo "Unknown option $OPTARG"
-        Help
-        exit 0;
-        ;;
-      :)
-        echo "Error: you must provide at least one instance name for option -$OPTARG"
-        exit 0;
-        ;;
-      *)
-        echo "Unknown error while processing options"
-        Help
-        exit 0;
-        ;;
-    esac
-  done
-
-shift $(($OPTIND - 1))
-
-param1=$1
-param2=$2
-
-# --- Backup Original Config -------------------------------------
-Backup(){
-	# copy koha-conf.xml to tmp in case you need to restore
-	config_backup=/tmp/$val.koha-conf.xml.bkp-$(date +%d-%m-%Y-%Hh%Mm%Ss)
-	sudo cp $configpath $config_backup
+# Backup Original Config
+Backup() {
+  config_backup=/tmp/$val.koha-conf.xml.bkp-$(date +%d-%m-%Y-%Hh%Mm%Ss)
+  sudo cp "$configpath" "$config_backup"
 }
 
-# --- Restore Original Config -------------------------------------
-Restore(){
-	# restore original config from backup
-	sudo cp $config_backup $configpath
+# Restore Original Config
+Restore() {
+  sudo cp "$config_backup" "$configpath"
 }
 
-# --- Locks -------------------------------------------------------
+# Locks
 LOCK_FILE=/tmp/$SUBJECT.lock
 if [ -f "$LOCK_FILE" ]; then
-   echo "Script is already running"
-   exit
+  echo -e "${RED}Script is already running${NC}"
+  exit 1
 fi
 
 trap "rm -f $LOCK_FILE" EXIT
-touch $LOCK_FILE
+touch "$LOCK_FILE"
 
-# --- Body --------------------------------------------------------
+# Body
 for val in "${instanceid[@]}"; do
-	# set path to koha-conf.xml
-	configpath=/etc/koha/sites/$val/koha-conf.xml
-	
-	# check if encryption key element exists
-	if [ $(sudo xmlstarlet sel -t -v "count(yazgfs/config/encryption_key)" $configpath) -eq "0" ];
-	then
+  # Set path to koha-conf.xml
+  configpath=/etc/koha/sites/"$val"/koha-conf.xml
 
-		printf "Updating koha-conf.xml... \n"
-		sleep 1s
+  # Check if encryption key element exists
+  if [ "$(sudo xmlstarlet sel -t -v "count(yazgfs/config/encryption_key)" "$configpath")" -eq "0" ]; then
+    echo -e "${YELLOW}Encryption key not found. Adding new encryption key...${NC}"
+    sleep 1s
 
-		# Backup the original config file
-		Backup
-		# generate encryption key and set to variable
-		keyvalue=$(pwgen 32 -1)	
-		
-		# if not existing, insert element
-		sudo xmlstarlet ed -L -P -s "/yazgfs/config" -t elem -n encryption_key -v $keyvalue $configpath 	
+    # Backup the original config file
+    Backup
 
-		# Prompt to restore original config
-		printf "The koha-conf.xml file for $val has been updated. \n"
-		while true; do
-			read -p "Restore original file? Answering yes will revert to original config file: " response 
-			case $response in
-				[yY][eE][sS]|[yY] )
-					Restore;
-					printf "The original config has been restored. \n";
-					break;;
-				
-				[nN][oO]|[nN] ) 
-					printf "Changes kept \n";
-					break;;
+    # Generate encryption key and set to variable
+    keyvalue=$(pwgen 32 -1)
 
-				[qQ][uU][iI][tT] | [qQ] )
-					exit;;
+# Insert new encryption key element
+sudo xmlstarlet ed -L -P -s "/yazgfs/config" -t elem -n encryption_key -v "$keyvalue" "$configpath"
 
-				* ) echo Invalid response.Try again;;
-			esac
-		done
-	else
-	
-		while true; do
-			read -p "Encryption_key exists. Do you want to update it?: " response 
-			case $response in
-
-				[yY][eE][sS]|[yY] )
-					printf "Updating koha-conf.xml... \n"
-					sleep 1s
-
-					# Backup the original config file
-					Backup
-
-					# generate encryption key and set to variable
-					keyvalue=$(pwgen 32 -1)	
-
-					# Replace encryption key with new value
-					sudo xmlstarlet ed -L -u "/yazgfs/config/encryption_key" -v $keyvalue $configpath 
-					printf "The encryption key has been updated.\n";
-					break;;
-
-				[nN][oO]|[nN] ) 
-					printf "No changes have been made. \n";
-					break;;
-
-				[qQ][uU][iI][tT] | [qQ] )
-					exit;;
-
-				* ) echo Invalid response.Try again;;
-			esac
-			done
-	fi
-	printf "################################################################# \n"
-	printf "If you encountered problems, you can find the timestamped backup config file here: $config_backup.\n"
-done
+# Prompt to restore original config
+echo -e "${GREEN}The koha-conf.xml file for $val has been updated.${NC}"
+read -rp "Do you want to restore the original file? (yes/no): " response
+case $response in
+  [yY][eE][sS]|[yY])
+    Restore
+    echo -e "${GREEN}The original config has been restored.${NC}"
+    ;;
+  [nN][oO]|[nN])
+    echo -e "${GREEN}Changes kept.${NC}"
+    ;;
+  *)
+    echo -e "${RED}Invalid response.${NC}"
+    ;;
+esac
