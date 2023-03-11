@@ -92,7 +92,7 @@ fi
 
 # Backup Original Config
 Backup() {
-  local config_backup="/tmp/$val.koha-conf.xml.bkp-$(date +%d-%m-%Y-%Hh%Mm%Ss)"
+  config_backup="/tmp/$val.koha-conf.xml.bkp-$(date +%d-%m-%Y-%Hh%Mm%Ss)"
   sudo cp "$configpath" "$config_backup"
 }
 
