@@ -58,24 +58,9 @@ function backup_instance() {
   local instance_id="$1"
   echo "Running backup for ${instance_id}. Please be patient."
   
-        local log_file="/var/log/koha/$(basename $0)_${instance_id}.log"
-        sudo touch "${log_file}"
-        sudo koha-run-backups "${instance_id}" 2>&1 | sudo tee -a "${log_file}" >/dev/null &
-        local pid=$!
-
-  local bar_width=50
-  local i=0
-  local chars="/-\|"
- 
- while kill -0 ${pid} >/dev/null 2>&1; do
-    local progress=$((${i} * 100 / ${bar_width}))
-    local bar=$(printf "%${i}s" | tr ' ' '#')
-    chars=$(printf "%-4s" "${chars}" | tr ' ' '#')
-    printf "[%-*s] %d%% %c\r" ${bar_width} "${bar}" ${progress} "${chars:${i++%${#chars}}:1}"
-    sleep 0.1
-done
-
-  wait ${pid}
+  local log_file="/var/log/koha/$(basename "$0" .sh)_${instance_id}.log"
+  sudo touch "${log_file}"
+  sudo koha-run-backups "${instance_id}" 2>&1 | sudo tee -a "${log_file}" >/dev/null
   local status=$?
   
   if [[ ${status} -eq 0 ]]; then
@@ -84,6 +69,7 @@ done
     echo "Error: backup for ${instance_id} failed. See ${log_file} for details."
   fi
 }
+
 
 
 function restore_instance() {
