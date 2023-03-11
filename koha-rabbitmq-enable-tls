@@ -3,7 +3,7 @@ set -e
 
 # Usage message
 usage() {
-  echo "Usage: enable-tls-for-rabbitmq.sh [-h] [-c <config-file>]"
+echo "Usage: enable-tls-for-rabbitmq.sh [-h] [-c <config-file>]"
 echo ""
 echo "Enable TLS for RabbitMQ by generating certificates and updating the configuration file."
 echo ""
