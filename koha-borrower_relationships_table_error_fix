@@ -169,27 +169,6 @@ for val in "${instanceid[@]}"; do
                         sudo koha-mysql $val -Nse "ALTER TABLE borrower_relationships ADD CONSTRAINT r_guarantor FOREIGN KEY (guarantor_id) REFERENCES borrowers (borrowernumber) ON DELETE CASCADE ON UPDATE CASCADE;"
                         printf "The foreign key drop and recreate operation for $val is complete. \n If the koha-upgrade-schema commmand above produces errors, you will need to resolve those errors before you can successfully complete the upgrade process. \n"
                         sleep 1s
-
-                #         # Prompt to check and restore the original database and configuration files
-                #         printf "The database repair is complete. Check if $val is running correctly. \n If anything is amiss and you need to restore your database and config files to the original state, \n answer y(es) to the next prompt.\n"
-                #         while true; do
-                #                 read -p "Restore database and configuration files?" response 
-                #                 case $response in
-                #                         [yY][eE][sS]|[yY] )
-                #                                 Restore;
-                #                                 printf "The original database and configuration has been restored. \n";
-                #                                 break;;
-                                        
-                #                         [nN][oO]|[nN] ) 
-                #                                 printf "Changes kept \n";
-                #                                 break;;
-
-                #                         [qQ][uU][iI][tT] | [qQ] )
-                #                                 exit;;
-
-                #                         * ) echo Invalid response.Try again;;
-                #                 esac
-                #         done
 			break;;
 
                 [nN][oO]|[nN] ) echo No changes have been made;
