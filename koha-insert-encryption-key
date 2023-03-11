@@ -128,3 +128,33 @@ case $response in
     echo -e "${RED}Invalid response.${NC}"
     ;;
 esac
+
+else
+echo -e "${YELLOW}Encryption key exists.${NC}"
+read -rp "Do you want to update it? (yes/no): " response
+case $response in
+[yY][eE][sS]|[yY])
+echo -e "${YELLOW}Updating encryption key...${NC}"
+sleep 1s
+
+    # Backup the original config file
+    Backup
+
+    # Generate encryption key and set to variable
+    keyvalue=$(pwgen 32 -1)
+
+    # Replace encryption key with new value
+    sudo xmlstarlet ed -L -u "/yazgfs/config/encryption_key" -v "$keyvalue" "$configpath"
+    echo -e "${GREEN}The encryption key has been updated.${NC}"
+    ;;
+  [nN][oO]|[nN])
+    echo -e "${GREEN}No changes have been made.${NC}"
+    ;;
+  *)
+    echo -e "${RED}Invalid response.${NC}"
+    ;;
+esac
+fi
+echo -e "#################################################################\n"
+echo -e "If you encountered problems, you can find the timestamped backup config file here: ${GREEN}$config_backup${NC}.\n"
+done
