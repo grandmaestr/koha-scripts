@@ -34,7 +34,6 @@ Help() {
   echo -e "  ${GREEN}${SCRIPT_NAME} -i library1 -i library2 ...${NC}"
 }
 
-<<<<<<< HEAD
 # Function to check if config file exists
 CheckConfigFile() {
   local val="$1"
@@ -66,8 +65,6 @@ Help() {
   echo -e "  ${GREEN}${SCRIPT_NAME} -i library1 -i library2 ...${NC}"
 }
 
-=======
->>>>>>> parent of 1711c8e (add config file path check)
 # Options processing
 while getopts ":i:vh" optname; do
   case "$optname" in
@@ -107,22 +104,8 @@ if [ ${#instanceid[@]} -eq 0 ]; then
   exit 1
 fi
 
-<<<<<<< HEAD
-=======
-# Backup Original Config
-Backup() {
-  config_backup=/tmp/$val.koha-conf.xml.bkp-$(date +%d-%m-%Y-%Hh%Mm%Ss)
-  sudo cp "$configpath" "$config_backup"
-}
-
-# Restore Original Config
-Restore() {
-  sudo cp "$config_backup" "$configpath"
-}
-
->>>>>>> parent of 1711c8e (add config file path check)
 # Locks
-LOCK_FILE=/tmp/$SUBJECT.lock
+LOCK_FILE="/tmp/$SUBJECT.lock"
 if [ -f "$LOCK_FILE" ]; then
   echo -e "${RED}Script is already running${NC}"
   exit 1
@@ -133,7 +116,6 @@ touch "$LOCK_FILE"
 
 # Body
 for val in "${instanceid[@]}"; do
-<<<<<<< HEAD
   configpath=$(CheckConfigFile "$val")
   
 #   Check if encryption key element exists
@@ -185,50 +167,6 @@ sleep 1s
       local config_backup="/tmp/$val.koha-conf.xml.bkp-$(date +%d-%m-%Y-%Hh%Mm%Ss)"
       sudo cp "$configpath" "$config_backup"
     }
-=======
-  # Set path to koha-conf.xml
-  configpath=/etc/koha/sites/"$val"/koha-conf.xml
-
-  # Check if encryption key element exists
-  if [ "$(sudo xmlstarlet sel -t -v "count(yazgfs/config/encryption_key)" "$configpath")" -eq "0" ]; then
-    echo -e "${YELLOW}Encryption key not found. Adding new encryption key...${NC}"
-    sleep 1s
-
-    # Backup the original config file
-    Backup
-
-    # Generate encryption key and set to variable
-    keyvalue=$(pwgen 32 -1)
-
-# Insert new encryption key element
-sudo xmlstarlet ed -L -P -s "/yazgfs/config" -t elem -n encryption_key -v "$keyvalue" "$configpath"
-
-# Prompt to restore original config
-echo -e "${GREEN}The koha-conf.xml file for $val has been updated.${NC}"
-read -rp "Do you want to restore the original file? (yes/no): " response
-case $response in
-  [yY][eE][sS]|[yY])
-    Restore
-    echo -e "${GREEN}The original config has been restored.${NC}"
-    ;;
-  [nN][oO]|[nN])
-    echo -e "${GREEN}Changes kept.${NC}"
-    ;;
-  *)
-    echo -e "${RED}Invalid response.${NC}"
-    ;;
-esac
-
-else
-echo -e "${YELLOW}Encryption key exists.${NC}"
-read -rp "Do you want to update it? (yes/no): " response
-case $response in
-[yY][eE][sS]|[yY])
-echo -e "${YELLOW}Updating encryption key...${NC}"
-sleep 1s
-
-    # Backup the original config file
->>>>>>> parent of 1711c8e (add config file path check)
     Backup
 
     # Generate encryption key and set to variable
@@ -246,10 +184,7 @@ sleep 1s
     ;;
 esac
 fi
-<<<<<<< HEAD
 
-=======
->>>>>>> parent of 1711c8e (add config file path check)
 echo -e "#################################################################\n"
 echo -e "If you encountered problems, you can find the timestamped backup config file here: ${GREEN}$config_backup${NC}.\n"
 done
