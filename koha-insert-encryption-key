@@ -37,10 +37,17 @@ Help() {
 # Function to check if config file exists
 CheckConfigFile() {
   local configpath="/etc/koha/sites/$1/koha-conf.xml"
+
   if [ ! -f "$configpath" ]; then
     echo -e "${RED}Error: $configpath does not exist.${NC}"
-    read -rp "Please enter the instance name: " val
-    CheckConfigFile "$val"
+    read -rp "Please enter a valid instance name, or enter 'q' to quit: " val
+
+    if [ "$val" = "q" ]; then
+      echo -e "${RED}Exiting...${NC}"
+      exit 1
+    else
+      CheckConfigFile "$val"
+    fi
   fi
 }
 
