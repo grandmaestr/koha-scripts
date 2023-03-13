@@ -12,7 +12,9 @@
 # MIT License
 # ------------------------------------------------------------------
 
-# Set the name of the script to variable
+#!/bin/bash
+
+# Set the name of the script to a variable
 SCRIPT_NAME="$(basename "${0}")"
 
 # Script version
@@ -22,18 +24,19 @@ readonly VERSION="0.1.0"
 Help() {
   # Display Help
   cat <<EOF
-        Usage: $SCRIPT_NAME -ihv args
+Usage: $SCRIPT_NAME -ihv args
 
-        Options:
-        i - instanceid. The name of the koha instance. One instance id per option.
-        h - help. Print this help.
-        v - version. Print the script version.
+Options:
+  i - instanceid. The name of the koha instance. One instance id per option.
+  h - help. Print this help.
+  v - version. Print the script version.
 
-        Example:
-        To define a new staff or OPAC url for a single instance called "library", run:
-            $SCRIPT_NAME -i library
-        For multiple instances, run
-                $SCRIPT_NAME -i library1 -i library2 ...
+Example:
+  To define a new staff or OPAC URL for a single instance called "library", run:
+    $SCRIPT_NAME -i library
+
+  For multiple instances, run:
+    $SCRIPT_NAME -i library1 -i library2 ...
 EOF
 }
 
@@ -46,21 +49,21 @@ print_color() {
   local message=$2
 
   case "${color}" in
-  "green")
-    printf "\033[0;32m%s\033[0m\n" "${message}"
-    ;;
-  "red")
-    printf "\033[0;31m%s\033[0m\n" "${message}"
-    ;;
-  "yellow")
-    printf "\033[0;33m%s\033[0m\n" "${message}"
-    ;;
-  "blue")
-    printf "\033[0;34m%s\033[0m\n" "${message}"
-    ;;
-  *)
-    printf "%s\n" "${message}"
-    ;;
+    "green")
+      printf "\033[0;32m%s\033[0m\n" "${message}"
+      ;;
+    "red")
+      printf "\033[0;31m%s\033[0m\n" "${message}"
+      ;;
+    "yellow")
+      printf "\033[0;33m%s\033[0m\n" "${message}"
+      ;;
+    "blue")
+      printf "\033[0;34m%s\033[0m\n" "${message}"
+      ;;
+    *)
+      printf "%s\n" "${message}"
+      ;;
   esac
 }
 
@@ -92,69 +95,67 @@ fi
 instanceids=()
 while getopts ":i:vh" optname; do
   case "${optname}" in
-  "v")
-    print_color "blue" "Version ${VERSION}"
-    exit 0
-    ;;
-  "i")
-    instanceids+=("${OPTARG}")
-    ;;
- "h")
-Help
-exit 0
-;;
-":")
-print_color "red" "Error: you must provide at least one instance name for option -${OPTARG}"
-exit 1
-;;
-"?")
-print_color "red" "Unknown option ${OPTARG}"
-Help
-exit 1
-;;
-*)
-print_color "red" "Unknown error while processing options"
-Help
-exit 1
-;;
-esac
+    "v")
+      print_color "blue" "Version ${VERSION}"
+      exit 0
+      ;;
+    "i")
+      instanceids+=("${OPTARG}")
+      ;;
+    "h")
+      Help
+      exit 0
+      ;;
+    ":")
+      print_color "red" "Error: you must provide at least one instance name for option -${OPTARG}"
+      exit 1
+      ;;
+    "?")
+      print_color "red" "Unknown option ${OPTARG}"
+      Help
+      exit 1
+      ;;
+    *)
+      print_color "red" "Unknown error while processing options"
+      Help
+      exit 1
+      ;;
+  esac
 done
 
-Shift options so that positional parameters can be accessed
+# Shift options so that positional parameters can be accessed
 shift $((OPTIND - 1))
 
 if [[ -z "${instanceids[*]}" ]]; then
-print_color "red" "No instance name(s) provided. Aborting."
-exit 1
+  print_color "red" "No instance name(s) provided. Aborting."
+  exit 1
 fi
 
 # --- Backup Original Config -------------------------------------
 backup() {
-
-Backup
-sudo koha-run-backups
+  sudo koha-run-backups
 }
 
 # --- Restore Original Config -------------------------------------
 restore() {
+local instance_name=$1
 
-# Stop and remove Koha instance
-sudo koha-worker --stop "${1}"
-sudo koha-plack --stop "${1}"
-sudo koha-zebra --stop "${1}"
-sudo koha-remove "${1}"
-sudo deluser demo-koha "${1}"
-sudo rm /etc/apache2/sites-enabled/demo.conf "${1}"
-sudo systemctl restart apache2.service "${1}"
+sudo koha-worker --stop "${instance_name}"
+sudo koha-plack --stop "${instance_name}"
+sudo koha-zebra --stop "${instance_name}"
+sudo koha-remove "${instance_name}"
+sudo deluser demo-koha "${instance_name}"
+sudo rm /etc/apache2/sites-enabled/demo.conf "${instance_name}"
+sudo systemctl restart apache2.service "${instance_name}"
 
 # Set path to backup files
-sqldump=$(sudo ls /var/spool/koha/"${1}"/.sql.gz -t | head -n1)
-configdump=$(sudo ls /var/spool/koha/"${1}"/.tar.gz -t | head -n1)
+sqldump=$(sudo ls /var/spool/koha/"${instance_name}"/.sql.gz -t | head -n1)
+configdump=$(sudo ls /var/spool/koha/"${instance_name}"/.tar.gz -t | head -n1)
 sudo koha-restore "${sqldump}" "${configdump}"
-sudo koha-worker --start "${1}"
-sudo koha-plack --enable "${1}"
-sudo koha-plack --start "${1}"
-sudo koha-zebra --start "${1}"
+sudo koha-worker --start "${instance_name}"
+sudo koha-plack --enable "${instance_name}"
+sudo koha-plack --start "${instance_name}"
+sudo koha-zebra --start "${instance_name}"
 }
 
 # --- Repair database ----------------------------------------------
@@ -193,17 +194,13 @@ DELETE FROM deleteditems WHERE itemnumber IN ($i);"
 done <"${item_file}"
 while read -r i; do
 sudo koha-mysql "${instance_name}" -Nse "
-DELETE FROM old_issues WHERE issue_id IN ($i);"
-done <"${issue_file}"
-while read -r i; do
-sudo koha-mysql "${instance_name}" -Nse "
 DELETE FROM old_reserves WHERE reserve_id IN ($i);"
 done <"${reserve_file}"
 
 print_color "green" "Database repair for ${instance_name} complete."
 }
-
---- Locks -------------------------------------------------------
+ 
+# --- Locks -------------------------------------------------------
 readonly LOCK_FILE=/tmp/"${SCRIPT_NAME}".lock
 if [[ -f "${LOCK_FILE}" ]]; then
 print_color "red" "Script is already running."
@@ -224,7 +221,6 @@ validate_command "koha-remove"
 validate_command "deluser"
 validate_command "rm"
 validate_command "systemctl"
-validate_command "sudo"
 
 # Enable and start Koha instances
 for instance_name in "${instanceids[@]}"; do
@@ -232,46 +228,52 @@ while true; do
 read -rp "Repair the database for ${instance_name}?: " response
 case "${response}" in
 [yY][eE][sS] | [yY])
-  # Backup database
-  backup
+# Backup database
+backup
 
-  # Repair duplicate values
-  repair_database "${instance_name}"
+    # Repair duplicate values
+    repair_database "${instance_name}"
 
-  # Prompt to check and restore the original database and configuration files
-  print_color "yellow" "The database repair is complete. Check if ${instance_name} is running correctly.\n If anything is amiss and you need to restore your database and config files to the original state,\n answer y(es) to the next prompt.\n"
-  while true; do
-    read -rp "Restore database and configuration files?" response
-    case "${response}" in
-    [yY][eE][sS] | [yY])
-      restore "${instance_name}"
-      print_color "green" "The original database and configuration have been restored."
-      break
-      ;;
-    [nN][oO] | [nN])
-      print_color "green" "Changes kept."
-      break
-      ;;
-    [qQ][uU][iI][tT] | [qQ])
-      exit
-      ;;
-    *)
-      print_color "red" "Invalid response. Try again."
-      ;;
-    esac
-  done
-  break
-  ;;
-[nN][oO] | [nN])
-  print_color "green" "No changes have been made."
-  break
-  ;;
-[qQ][uU][iI][tT] | [qQ])
-  exit
-  ;;
-*)
-  print_color "red" "Invalid response. Try again."
- 
+    # Prompt to check and restore the original database and configuration files
+    print_color "yellow" "The database repair is complete. Check if ${instance_name} is running correctly.\n If anything is amiss and you need to restore your database and config files to the original state,\n answer y(es) to the next prompt.\n"
+    while true; do
+      read -rp "Restore database and configuration files?" response
+      case "${response}" in
+        [yY][eE][sS] | [yY])
+          restore "${instance_name}"
+          print_color "green" "The original database and configuration have been restored."
+          break
+          ;;
+        [nN][oO] | [nN])
+          print_color "green" "Changes kept."
+          break
+          ;;
+        [qQ][uU][iI][tT] | [qQ])
+          exit
+          ;;
+        *)
+          print_color "red" "Invalid response. Try again."
+          ;;
+      esac
+    done
+    break
+    ;;
+  [nN][oO] | [nN])
+    print_color "green" "No changes have been made."
+    break
+    ;;
+  [qQ][uU][iI][tT] | [qQ])
+    exit
+    ;;
+  *)
+    print_color "red" "Invalid response. Try again."
+    ;;
+esac
+
+done
+done
+
+exit 0
 # --- License -----------------------------------------------------
 cat <<EOF
 MIT License
