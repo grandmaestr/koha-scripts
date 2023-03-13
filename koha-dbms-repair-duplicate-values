@@ -12,8 +12,6 @@
 # MIT License
 # ------------------------------------------------------------------
 
-#!/bin/bash
-
 # Set the name of the script to a variable
 SCRIPT_NAME="$(basename "${0}")"
 
