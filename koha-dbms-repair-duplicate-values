@@ -158,37 +158,47 @@ sudo koha-zebra --start "${instance_name}"
 }
 
 # --- Repair database ----------------------------------------------
-function repair_database() {
-  local instance_name="$1"
-  local timestamp=$(date +"%d_%m_%Y_%T")
+repair_database() {
+local instance_name=$1
+local timestamp=$(date +"%d_%m_%Y_%T")
+local borrower_file="/tmp/${instance_name}-borrowers_${timestamp}.txt"
+local biblio_file="/tmp/${instance_name}-biblionumber_${timestamp}.txt"
+local item_file="/tmp/${instance_name}-itemnumber_${timestamp}.txt"
+local issue_file="/tmp/${instance_name}-issue_id_${timestamp}.txt"
+local reserve_file="/tmp/${instance_name}-reserve_id_${timestamp}.txt"
 
-  # Define the files
-  local files=(
-    "borrowers:${instance_name}-borrowers_${timestamp}.txt"
-    "biblio:${instance_name}-biblionumber_${timestamp}.txt"
-    "items:${instance_name}-itemnumber_${timestamp}.txt"
-    "issues:${instance_name}-issue_id_${timestamp}.txt"
-    "reserves:${instance_name}-reserve_id_${timestamp}.txt"
-  )
+# Repair duplicate values
+sudo koha-mysql "${instance_name}" -Nse "
+SELECT b.borrowernumber FROM borrowers b JOIN deletedborrowers db ON b.borrowernumber=db.borrowernumber;" | tr '\t' ',' >"${borrower_file}"
+sudo koha-mysql "${instance_name}" -Nse "
+SELECT b.biblionumber FROM biblio b JOIN deletedbiblio db ON b.biblionumber=db.biblionumber;" | tr '\t' ',' >"${biblio_file}"
+sudo koha-mysql "${instance_name}" -Nse "
+SELECT i.itemnumber FROM items i JOIN deleteditems di ON i.itemnumber=di.itemnumber;" | tr '\t' ',' >"${item_file}"
+sudo koha-mysql "${instance_name}" -Nse "
+SELECT i.issue_id FROM issues i JOIN old_issues oi ON i.issue_id=oi.issue_id;" | tr '\t' ',' >"${issue_file}"
+sudo koha-mysql "${instance_name}" -Nse "
+SELECT r.reserve_id FROM reserves r JOIN old_reserves o ON r.reserve_id=o.reserve_id;" | tr '\t' ',' >"${reserve_file}"
 
-  # Loop through the files, extract the data, and delete duplicates
-  for file in "${files[@]}"; do
-    local table="${file%%:*}"
-    local filename="${file#*:}"
-    local tmp_file="/tmp/${filename}"
-    
-    # Extract the data and remove duplicates
-    sudo koha-mysql "${instance_name}" -Nse "
-      SELECT ${table%?}number FROM ${table} JOIN deleted${table} ON ${table%?}number=deleted${table%?}number
-    " | tr '\t' ',' | tee "${tmp_file}" | sudo koha-mysql "${instance_name}" -Nse "
-      DELETE FROM deleted${table} WHERE ${table%?}number IN ($(cat ${tmp_file}))
-    " >/dev/null
-    
-    # Print the status message
-    print_color "green" "Deleted duplicates in ${table} for ${instance_name}"
-  done
+while read -r i; do
+sudo koha-mysql "${instance_name}" -Nse "
+DELETE FROM deletedborrowers WHERE borrowernumber IN ($i);"
+done <"${borrower_file}"
+while read -r i; do
+sudo koha-mysql "${instance_name}" -Nse "
+DELETE FROM deletedbiblio WHERE biblionumber IN ($i);"
+done <"${biblio_file}"
+while read -r i; do
+sudo koha-mysql "${instance_name}" -Nse "
+DELETE FROM deleteditems WHERE itemnumber IN ($i);"
+done <"${item_file}"
+while read -r i; do
+sudo koha-mysql "${instance_name}" -Nse "
+DELETE FROM old_reserves WHERE reserve_id IN ($i);"
+done <"${reserve_file}"
+
+print_color "green" "Database repair for ${instance_name} complete."
 }
-
+ 
 # --- Locks -------------------------------------------------------
 readonly LOCK_FILE=/tmp/"${SCRIPT_NAME}".lock
 if [[ -f "${LOCK_FILE}" ]]; then
