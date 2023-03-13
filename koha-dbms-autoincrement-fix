@@ -25,29 +25,36 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-set -euo pipefail  # Enable error checking and strict mode
+set -euox pipefail  # Enable error checking and strict mode
 IFS=$'\n\t'
 
-# Check if koha-mysql-init.sh exists in the directory
-if [[ ! -f "./koha-mysql-init/koha-mysql-init.sh" ]]; then
-    echo -e "\e[31mError: koha-mysql-init.sh not found in the directory.\e[0m"
-    exit 1
+echo -e "\e[33mWarning: This script will make changes to your system.\e[0m"
+read -p "Do you want to continue? [y/n]: " confirmation
+
+if [[ "$confirmation" == [yY] || "$confirmation" == [yY][eE][sS] ]]; then
+    # Check if koha-mysql-init.sh exists in the directory
+    if [[ ! -f "./koha-mysql-init/koha-mysql-init.sh" ]]; then
+        echo -e "\e[31mError: koha-mysql-init.sh not found in the directory.\e[0m"
+        exit 1
+    fi
+
+    # Copy required files from ./koha-mysql-init/ to /etc/koha/
+    sudo cp -a ./koha-mysql-init/koha-mysql-init.sh /etc/koha/
+    sudo cp -a ./koha-mysql-init/koha-mysql-init.sql /etc/koha/
+    sudo cp -a ./koha-mysql-init/koha-mysql-init.service /etc/systemd/system/
+
+    # Enable the koha-mysql-init service
+    sudo systemctl enable koha-mysql-init
+
+    # Reload the systemd daemon and list all unit files that contain the string 'koha'
+    sudo systemctl daemon-reload
+    sudo systemctl list-unit-files | grep -i koha
+
+    # Restart mysql service to execute the init script
+    sudo systemctl restart mysql
+
+    # Confirm that the koha-mysql-init service ran successfully by searching for the string 'koha' in /var/log/syslog
+    sudo tail -f /var/log/syslog | grep -i koha
+else
+    echo "Aborted by user."
 fi
-
-# Copy required files from ./koha-mysql-init/ to /etc/koha/
-sudo cp -a ./koha-mysql-init/koha-mysql-init.sh /etc/koha/
-sudo cp -a ./koha-mysql-init/koha-mysql-init.sql /etc/koha/
-sudo cp -a ./koha-mysql-init/koha-mysql-init.service /etc/systemd/system/
-
-# Enable the koha-mysql-init service
-sudo systemctl enable koha-mysql-init
-
-# Reload the systemd daemon and list all unit files that contain the string 'koha'
-sudo systemctl daemon-reload
-sudo systemctl list-unit-files | grep -i koha
-
-# Restart mysql service to execute the init script
-sudo systemctl restart mysql
-
-# Confirm that the koha-mysql-init service ran successfully by searching for the string 'koha' in /var/log/syslog
-sudo tail -f /var/log/syslog | grep -i koha
