@@ -1,0 +1,53 @@
+#!/bin/bash
+
+# Koha DBMS autoincrement fix script.
+# This script is designed to be run on startup to ensure Koha's DBMS autoincrement issue is fixed.
+# It copies necessary files from ./koha-mysql-init/ directory to /etc/koha/ directory.
+# Actual script is courtesy of KohaAloha (https://github.com/KohaAloha/koha-mysql-init).
+
+# The MIT License (MIT)
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+# THE SOFTWARE.
+
+set -euo pipefail  # Enable error checking and strict mode
+IFS=$'\n\t'
+
+# Check if koha-mysql-init.sh exists in the directory
+if [[ ! -f "./koha-mysql-init/koha-mysql-init.sh" ]]; then
+    echo -e "\e[31mError: koha-mysql-init.sh not found in the directory.\e[0m"
+    exit 1
+fi
+
+# Copy required files from ./koha-mysql-init/ to /etc/koha/
+sudo cp -a ./koha-mysql-init/koha-mysql-init.sh /etc/koha/
+sudo cp -a ./koha-mysql-init/koha-mysql-init.sql /etc/koha/
+sudo cp -a ./koha-mysql-init/koha-mysql-init.service /etc/systemd/system/
+
+# Enable the koha-mysql-init service
+sudo systemctl enable koha-mysql-init
+
+# Reload the systemd daemon and list all unit files that contain the string 'koha'
+sudo systemctl daemon-reload
+sudo systemctl list-unit-files | grep -i koha
+
+# Restart mysql service to execute the init script
+sudo systemctl restart mysql
+
+# Confirm that the koha-mysql-init service ran successfully by searching for the string 'koha' in /var/log/syslog
+sudo tail -f /var/log/syslog | grep -i koha
