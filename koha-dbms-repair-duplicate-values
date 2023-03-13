@@ -122,7 +122,7 @@ while getopts ":i:vh" optname; do
 done
 
 # Shift options so that positional parameters can be accessed
-shift $((OPTIND - 1))
+shift "$((OPTIND - 1))"
 
 if [[ -z "${instanceids[*]}" ]]; then
   print_color "red" "No instance name(s) provided. Aborting."
