@@ -1,26 +1,27 @@
-#!/bin/bash
 # ------------------------------------------------------------------
 # Author: Lennon Mazonde
 # GitHub: @grandmaestr
 # Title: koha-dbms-repair
-# Description: 
+# Description:
 #       This script repairs tables with duplicate values as documented here https://wiki.koha-community.org/wiki/DBMS_auto_increment_fix.
 # 	You can copy and paste this script onto your server and make it executable by running "chmod a+x /path/to/file_name"
-# 	To run the script, simply go to "/path/to/file_name" or if it's in your home directory, run "file_name"  in the CLI.
+# 	To run the script, simply go to "/path/to/file_name" or if it's in your home directory, run "file_name" in the CLI.
 # 	This script is interactive, so you'll be prompted for input at various stages.
 # 	You can modify or use this script however you like but I'd really appreciate it if you give me a shout out or attribution if you post it elsewhere :)
-
+#
+# MIT License
 # ------------------------------------------------------------------
 
-# Script version
-VERSION=0.1.0
 # Set the name of the script to variable
-SCRIPT_NAME="$(basename ${0})"
+SCRIPT_NAME="$(basename "${0}")"
+
+# Script version
+readonly VERSION="0.1.0"
 
 # ------Help--------------------------------------------------------
-Help(){
-    # Display Help
-    cat <<EOF
+Help() {
+  # Display Help
+  cat <<EOF
         Usage: $SCRIPT_NAME -ihv args
 
         Options:
@@ -35,167 +36,265 @@ Help(){
                 $SCRIPT_NAME -i library1 -i library2 ...
 EOF
 }
+
+# Prints colored text
+# Arguments:
+#   1. Color code
+#   2. Message
+print_color() {
+  local color=$1
+  local message=$2
+
+  case "${color}" in
+  "green")
+    printf "\033[0;32m%s\033[0m\n" "${message}"
+    ;;
+  "red")
+    printf "\033[0;31m%s\033[0m\n" "${message}"
+    ;;
+  "yellow")
+    printf "\033[0;33m%s\033[0m\n" "${message}"
+    ;;
+  "blue")
+    printf "\033[0;34m%s\033[0m\n" "${message}"
+    ;;
+  *)
+    printf "%s\n" "${message}"
+    ;;
+  esac
+}
+
+# Validates whether the required command is available
+# Arguments:
+#   1. Command name
+validate_command() {
+  local command=$1
+  if ! command -v "${command}" >/dev/null 2>&1; then
+    print_color "red" "${command} is required but it's not installed. Aborting."
+    exit 1
+  fi
+}
+
+# Validates whether the script is being run as root
+validate_root_user() {
+  if [[ "${EUID}" -ne 0 ]]; then
+    print_color "red" "This script must be run as root. Aborting."
+    exit 1
+  fi
+}
+
 # --- Options processing -------------------------------------------
-if [ $# == 0 ] ; then
-    Help
-    exit 1;
+if [[ $# == 0 ]]; then
+  Help
+  exit 1
 fi
 
+instanceids=()
 while getopts ":i:vh" optname; do
-    case "$optname" in
-      v)
-        echo "Version $VERSION"
-        exit 0;
-        ;;
-      i)  
-        instanceid+=("$OPTARG")
-        ;;
-      h)
-        Help
-        exit 0;
-        ;;
-      \?)
-        echo "Unknown option $OPTARG"
-        Help
-        exit 0;
-        ;;
-      :)
-        echo "Error: you must provide at least one instance name for option -$OPTARG"
-        exit 0;
-        ;;
-      *)
-        echo "Unknown error while processing options"
-        Help
-        exit 0;
-        ;;
-    esac
-  done
+  case "${optname}" in
+  "v")
+    print_color "blue" "Version ${VERSION}"
+    exit 0
+    ;;
+  "i")
+    instanceids+=("${OPTARG}")
+    ;;
+ "h")
+Help
+exit 0
+;;
+":")
+print_color "red" "Error: you must provide at least one instance name for option -${OPTARG}"
+exit 1
+;;
+"?")
+print_color "red" "Unknown option ${OPTARG}"
+Help
+exit 1
+;;
+*)
+print_color "red" "Unknown error while processing options"
+Help
+exit 1
+;;
+esac
+done
 
-shift $(($OPTIND - 1))
+Shift options so that positional parameters can be accessed
+shift $((OPTIND - 1))
 
-param1=$1
-param2=$2
+if [[ -z "${instanceids[*]}" ]]; then
+print_color "red" "No instance name(s) provided. Aborting."
+exit 1
+fi
 
 # --- Backup Original Config -------------------------------------
-Backup(){
-	# Backup 
-        sudo koha-run-backups
+backup() {
+
+Backup
+sudo koha-run-backups
 }
+
 # --- Restore Original Config -------------------------------------
-Restore(){
-	# Stop and remove Koha instance
-        sudo koha-worker --stop $val
-        sudo koha-plack --stop $val
-        sudo koha-zebra --stop $val
-        sudo koha-remove $val
-        sudo deluser demo-koha $val
-        sudo rm /etc/apache2/sites-enabled/demo.conf $val
-        sudo systemctl restart apache2.service $val
+restore() {
 
-        # Set path to backup files
-        sqldump=$(sudo ls /var/spool/koha/$val/*.sql.gz -t | head -n1)
-        configdump=$(sudo ls /var/spool/koha/$val/*.tar.gz -t | head -n1)
-        sudo koha-restore $sqldump $configdump
-        sudo koha-worker --start $val
-        sudo koha-plack --enable $val
-        sudo koha-plack --start $val
-        sudo koha-zebra --start $val
+# Stop and remove Koha instance
+sudo koha-worker --stop "${1}"
+sudo koha-plack --stop "${1}"
+sudo koha-zebra --stop "${1}"
+sudo koha-remove "${1}"
+sudo deluser demo-koha "${1}"
+sudo rm /etc/apache2/sites-enabled/demo.conf "${1}"
+sudo systemctl restart apache2.service "${1}"
+
+# Set path to backup files
+sqldump=$(sudo ls /var/spool/koha/"${1}"/.sql.gz -t | head -n1)
+configdump=$(sudo ls /var/spool/koha/"${1}"/.tar.gz -t | head -n1)
+sudo koha-restore "${sqldump}" "${configdump}"
+sudo koha-worker --start "${1}"
+sudo koha-plack --enable "${1}"
+sudo koha-plack --start "${1}"
+sudo koha-zebra --start "${1}"
 }
 
-# --- Locks -------------------------------------------------------
-LOCK_FILE=/tmp/$SUBJECT.lock
-if [ -f "$LOCK_FILE" ]; then
-   echo "Script is already running"
-   exit
+# --- Repair database ----------------------------------------------
+repair_database() {
+local instance_name=$1
+local timestamp=$(date +"%d_%m_%Y_%T")
+local borrower_file="/tmp/${instance_name}-borrowers_${timestamp}.txt"
+local biblio_file="/tmp/${instance_name}-biblionumber_${timestamp}.txt"
+local item_file="/tmp/${instance_name}-itemnumber_${timestamp}.txt"
+local issue_file="/tmp/${instance_name}-issue_id_${timestamp}.txt"
+local reserve_file="/tmp/${instance_name}-reserve_id_${timestamp}.txt"
+
+# Repair duplicate values
+sudo koha-mysql "${instance_name}" -Nse "
+SELECT b.borrowernumber FROM borrowers b JOIN deletedborrowers db ON b.borrowernumber=db.borrowernumber;" | tr '\t' ',' >"${borrower_file}"
+sudo koha-mysql "${instance_name}" -Nse "
+SELECT b.biblionumber FROM biblio b JOIN deletedbiblio db ON b.biblionumber=db.biblionumber;" | tr '\t' ',' >"${biblio_file}"
+sudo koha-mysql "${instance_name}" -Nse "
+SELECT i.itemnumber FROM items i JOIN deleteditems di ON i.itemnumber=di.itemnumber;" | tr '\t' ',' >"${item_file}"
+sudo koha-mysql "${instance_name}" -Nse "
+SELECT i.issue_id FROM issues i JOIN old_issues oi ON i.issue_id=oi.issue_id;" | tr '\t' ',' >"${issue_file}"
+sudo koha-mysql "${instance_name}" -Nse "
+SELECT r.reserve_id FROM reserves r JOIN old_reserves o ON r.reserve_id=o.reserve_id;" | tr '\t' ',' >"${reserve_file}"
+
+while read -r i; do
+sudo koha-mysql "${instance_name}" -Nse "
+DELETE FROM deletedborrowers WHERE borrowernumber IN ($i);"
+done <"${borrower_file}"
+while read -r i; do
+sudo koha-mysql "${instance_name}" -Nse "
+DELETE FROM deletedbiblio WHERE biblionumber IN ($i);"
+done <"${biblio_file}"
+while read -r i; do
+sudo koha-mysql "${instance_name}" -Nse "
+DELETE FROM deleteditems WHERE itemnumber IN ($i);"
+done <"${item_file}"
+while read -r i; do
+sudo koha-mysql "${instance_name}" -Nse "
+DELETE FROM old_issues WHERE issue_id IN ($i);"
+done <"${issue_file}"
+while read -r i; do
+sudo koha-mysql "${instance_name}" -Nse "
+DELETE FROM old_reserves WHERE reserve_id IN ($i);"
+done <"${reserve_file}"
+
+print_color "green" "Database repair for ${instance_name} complete."
+}
+
+--- Locks -------------------------------------------------------
+readonly LOCK_FILE=/tmp/"${SCRIPT_NAME}".lock
+if [[ -f "${LOCK_FILE}" ]]; then
+print_color "red" "Script is already running."
+exit 1
 fi
 
 trap "rm -f $LOCK_FILE" EXIT
-touch $LOCK_FILE
+touch "${LOCK_FILE}"
 
 # --- Body --------------------------------------------------------
+validate_root_user
+validate_command "sudo"
+validate_command "koha-run-backups"
+validate_command "koha-worker"
+validate_command "koha-plack"
+validate_command "koha-zebra"
+validate_command "koha-remove"
+validate_command "deluser"
+validate_command "rm"
+validate_command "systemctl"
+validate_command "sudo"
 
-time=$(date +"%d_%m_%Y_%T")
-# Enable and start  Koha instances
-for val in "${instanceid[@]}"; do 
-	while true; do
-		read -p "Repair the database for $val?:  " response 
+# Enable and start Koha instances
+for instance_name in "${instanceids[@]}"; do
+while true; do
+read -rp "Repair the database for ${instance_name}?: " response
+case "${response}" in
+[yY][eE][sS] | [yY])
+  # Backup database
+  backup
 
-		case $response in
-                [yY][eE][sS]|[yY] )
-                        # Backup database
-                        Backup
+  # Repair duplicate values
+  repair_database "${instance_name}"
 
-                        # Repair duplicate values
+  # Prompt to check and restore the original database and configuration files
+  print_color "yellow" "The database repair is complete. Check if ${instance_name} is running correctly.\n If anything is amiss and you need to restore your database and config files to the original state,\n answer y(es) to the next prompt.\n"
+  while true; do
+    read -rp "Restore database and configuration files?" response
+    case "${response}" in
+    [yY][eE][sS] | [yY])
+      restore "${instance_name}"
+      print_color "green" "The original database and configuration have been restored."
+      break
+      ;;
+    [nN][oO] | [nN])
+      print_color "green" "Changes kept."
+      break
+      ;;
+    [qQ][uU][iI][tT] | [qQ])
+      exit
+      ;;
+    *)
+      print_color "red" "Invalid response. Try again."
+      ;;
+    esac
+  done
+  break
+  ;;
+[nN][oO] | [nN])
+  print_color "green" "No changes have been made."
+  break
+  ;;
+[qQ][uU][iI][tT] | [qQ])
+  exit
+  ;;
+*)
+  print_color "red" "Invalid response. Try again."
+ 
+# --- License -----------------------------------------------------
+cat <<EOF
+MIT License
 
-                        sudo koha-mysql $val -Nse "
-                                SELECT b.borrowernumber FROM borrowers b JOIN deletedborrowers db ON b.borrowernumber=db.borrowernumber;" | tr '\t' ',' > /tmp/$val-borrowers_$time.txt
-                        sudo koha-mysql $val -Nse "
-                                SELECT b.biblionumber   FROM biblio b    JOIN deletedbiblio db    ON b.biblionumber=db.biblionumber;" | tr '\t' ',' > /tmp/$val-biblionumber_$time.txt
-                        sudo koha-mysql $val -Nse "
-                                SELECT i.itemnumber     FROM items i     JOIN deleteditems di     ON i.itemnumber=di.itemnumber;" | tr '\t' ',' > /tmp/$val-itemnumber_$time.txt
-                        sudo koha-mysql $val -Nse "
-                                SELECT i.issue_id       FROM issues i    JOIN old_issues oi       ON i.issue_id=oi.issue_id;" | tr '\t' ',' > /tmp/$val-issue_id_$time.txt
-                        sudo koha-mysql $val -Nse "
-                                SELECT r.reserve_id     FROM reserves r  JOIN old_reserves o      ON r.reserve_id=o.reserve_id;" | tr '\t' ',' > /tmp/$val-reserve_id_$time.txt
+Copyright (c) ${YEAR} ${AUTHOR}
 
-                        while read i; 
-                        do
-                                sudo koha-mysql $val -Nse "
-                                        DELETE FROM deletedborrowers WHERE borrowernumber IN ($i);"
-                                done < /tmp/$val-borrowers_$time.txt
-                        while read i;
-                        do
-                                sudo koha-mysql $val -Nse "
-                                        DELETE FROM deletedbiblio WHERE biblionumber IN ($i);"
-                                done < /tmp/$val-biblionumber_$time.txt
-                        while read i;
-                        do
-                                sudo koha-mysql $val -Nse "
-                                        DELETE FROM deleteditems WHERE itemnumber IN ($i);"
-                                done < /tmp/$val-itemnumber_$time.txt
-                        while read i;
-                        do
-                                sudo koha-mysql $val -Nse "
-                                        DELETE FROM old_issues WHERE issue_id IN ($i);"
-                                done < /tmp/$val-issue_id_$time.txt
-                        while read i;
-                        do
-                                sudo koha-mysql $val -Nse "
-                                        DELETE FROM old_reserves WHERE reserve_id  IN ($i);"
-                                done  < /tmp/$val-reserve_id_$time.txt
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
 
-                        printf "Database repair for $val complete. \n"
-                        sleep 1s
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
 
-                        # Prompt to check and restore the original database and configuration files
-                        printf "The database repair is complete. Check if $val is running correctly. \n If anything is amiss and you need to restore your database and config files to the original state, \n answer y(es) to the next prompt.\n"
-                        while true; do
-                                read -p "Restore database and configuration files?" response 
-                                case $response in
-                                        [yY][eE][sS]|[yY] )
-                                                Restore;
-                                                printf "The original database and configuration has been restored. \n";
-                                                break;;
-                                        
-                                        [nN][oO]|[nN] ) 
-                                                printf "Changes kept \n";
-                                                break;;
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+EOF
 
-                                        [qQ][uU][iI][tT] | [qQ] )
-                                                exit;;
-
-                                        * ) echo Invalid response.Try again;;
-                                esac
-                        done
-			break;;
-
-                [nN][oO]|[nN] ) echo No changes have been made;
-                        break;;
-
-                [qQ][uU][iI][tT] | [qQ] )
-                        exit;;
-
-                * ) echo Invalid response.Try again;;
-                esac
-        done
-done
+exit 0
