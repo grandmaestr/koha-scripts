@@ -158,47 +158,37 @@ sudo koha-zebra --start "${instance_name}"
 }
 
 # --- Repair database ----------------------------------------------
-repair_database() {
-local instance_name=$1
-local timestamp=$(date +"%d_%m_%Y_%T")
-local borrower_file="/tmp/${instance_name}-borrowers_${timestamp}.txt"
-local biblio_file="/tmp/${instance_name}-biblionumber_${timestamp}.txt"
-local item_file="/tmp/${instance_name}-itemnumber_${timestamp}.txt"
-local issue_file="/tmp/${instance_name}-issue_id_${timestamp}.txt"
-local reserve_file="/tmp/${instance_name}-reserve_id_${timestamp}.txt"
+function repair_database() {
+  local instance_name="$1"
+  local timestamp=$(date +"%d_%m_%Y_%T")
 
-# Repair duplicate values
-sudo koha-mysql "${instance_name}" -Nse "
-SELECT b.borrowernumber FROM borrowers b JOIN deletedborrowers db ON b.borrowernumber=db.borrowernumber;" | tr '\t' ',' >"${borrower_file}"
-sudo koha-mysql "${instance_name}" -Nse "
-SELECT b.biblionumber FROM biblio b JOIN deletedbiblio db ON b.biblionumber=db.biblionumber;" | tr '\t' ',' >"${biblio_file}"
-sudo koha-mysql "${instance_name}" -Nse "
-SELECT i.itemnumber FROM items i JOIN deleteditems di ON i.itemnumber=di.itemnumber;" | tr '\t' ',' >"${item_file}"
-sudo koha-mysql "${instance_name}" -Nse "
-SELECT i.issue_id FROM issues i JOIN old_issues oi ON i.issue_id=oi.issue_id;" | tr '\t' ',' >"${issue_file}"
-sudo koha-mysql "${instance_name}" -Nse "
-SELECT r.reserve_id FROM reserves r JOIN old_reserves o ON r.reserve_id=o.reserve_id;" | tr '\t' ',' >"${reserve_file}"
+  # Define the files
+  local files=(
+    "borrowers:${instance_name}-borrowers_${timestamp}.txt"
+    "biblio:${instance_name}-biblionumber_${timestamp}.txt"
+    "items:${instance_name}-itemnumber_${timestamp}.txt"
+    "issues:${instance_name}-issue_id_${timestamp}.txt"
+    "reserves:${instance_name}-reserve_id_${timestamp}.txt"
+  )
 
-while read -r i; do
-sudo koha-mysql "${instance_name}" -Nse "
-DELETE FROM deletedborrowers WHERE borrowernumber IN ($i);"
-done <"${borrower_file}"
-while read -r i; do
-sudo koha-mysql "${instance_name}" -Nse "
-DELETE FROM deletedbiblio WHERE biblionumber IN ($i);"
-done <"${biblio_file}"
-while read -r i; do
-sudo koha-mysql "${instance_name}" -Nse "
-DELETE FROM deleteditems WHERE itemnumber IN ($i);"
-done <"${item_file}"
-while read -r i; do
-sudo koha-mysql "${instance_name}" -Nse "
-DELETE FROM old_reserves WHERE reserve_id IN ($i);"
-done <"${reserve_file}"
-
-print_color "green" "Database repair for ${instance_name} complete."
+  # Loop through the files, extract the data, and delete duplicates
+  for file in "${files[@]}"; do
+    local table="${file%%:*}"
+    local filename="${file#*:}"
+    local tmp_file="/tmp/${filename}"
+    
+    # Extract the data and remove duplicates
+    sudo koha-mysql "${instance_name}" -Nse "
+      SELECT ${table%?}number FROM ${table} JOIN deleted${table} ON ${table%?}number=deleted${table%?}number
+    " | tr '\t' ',' | tee "${tmp_file}" | sudo koha-mysql "${instance_name}" -Nse "
+      DELETE FROM deleted${table} WHERE ${table%?}number IN ($(cat ${tmp_file}))
+    " >/dev/null
+    
+    # Print the status message
+    print_color "green" "Deleted duplicates in ${table} for ${instance_name}"
+  done
 }
- 
+
 # --- Locks -------------------------------------------------------
 readonly LOCK_FILE=/tmp/"${SCRIPT_NAME}".lock
 if [[ -f "${LOCK_FILE}" ]]; then
@@ -224,7 +214,7 @@ validate_command "systemctl"
 # Enable and start Koha instances
 for instance_name in "${instanceids[@]}"; do
 while true; do
-read -rp "Repair the database for ${instance_name}?: " response
+read -rp "Repair the database for ${instance_name}?(yes/no): " response
 case "${response}" in
 [yY][eE][sS] | [yY])
 # Backup database
@@ -236,7 +226,7 @@ backup
     # Prompt to check and restore the original database and configuration files
     print_color "yellow" "The database repair is complete. Check if ${instance_name} is running correctly.\n If anything is amiss and you need to restore your database and config files to the original state,\n answer y(es) to the next prompt.\n"
     while true; do
-      read -rp "Restore database and configuration files?" response
+      read -rp "Restore database and configuration files? (yes/no): " response
       case "${response}" in
         [yY][eE][sS] | [yY])
           restore "${instance_name}"
