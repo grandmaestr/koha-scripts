@@ -12,46 +12,86 @@
 #       You can modify or use this script however you like but I'd really appreciate it if you give me a shout out or attribution if you post it elsewhere :)
 
 # ------------------------------------------------------------------
-#set -x 
-#set -e
+#!/bin/bash
+set -euo pipefail
 
 # Script version
-VERSION=0.1.0
+VERSION="0.1.0"
 # Set the name of the script to variable
-SCRIPT_NAME="$(basename ${0})"
+SCRIPT_NAME="$(basename "${0}")"
 
-# --- Dump and copy db to s3 --------------------------------------------
-DUMP_DB(){
-        # Set the path to koha_conf.xml
-        koha_conf=/etc/koha/sites/$val/koha-conf.xml
-        # Retrieve the Koha user, password, database hostname
-        kohadbpwd=$(sudo xmlstarlet sel -t -v 'yazgfs/config/pass' $koha_conf)
-        kohadbuser=koha_$val
-        kohadbpath=$(sudo xmlstarlet sel -t -v 'yazgfs/config/hostname' $koha_conf)
+# Set up temporary directory for SQL dump
+DUMP_DIR=$(mktemp -d)
 
-        # Dump Koha database and copy to S3 bucket
-        mysqldump -h${kohadbpath} -u${kohadbuser} -p${kohadbpwd} --single-transaction --databases  --no-tablespaces koha_$val  > /tmp/koha_$val-$(date +"%m-%d-%Y-%Hh%M").sql
+# Function to dump and copy database to S3
+dump_db() {
+  local instance_name=$1
 
-        aws s3 cp  /tmp/koha_$val-$(date +"%m-%d-%Y-%Hh%M").sql $S3_BUCKET/database/$val/koha_$val-$(date +"%m-%d-%Y-%Hh%M").sql
+  # Set the path to koha_conf.xml
+  koha_conf="/etc/koha/sites/${instance_name}/koha-conf.xml"
 
-        # delete temp file
-        rm /tmp/koha_$val-$(date +"%m-%d-%Y-%Hh%M").sql
+  # Retrieve the Koha user, password, and database hostname
+  kohadbpwd=$(sudo xmlstarlet sel -t -v 'yazgfs/config/pass' "$koha_conf")
+  kohadbuser="koha_${instance_name}"
+  kohadbhost=$(sudo xmlstarlet sel -t -v 'yazgfs/config/hostname' "$koha_conf")
+  
+
+  # Dump Koha database and copy to S3 bucket
+  mysqldump -h "$kohadbhost" -u "$kohadbuser" -p"$kohadbpwd" \
+    --single-transaction --databases --no-tablespaces "koha_${instance_name}" \
+    >"${DUMP_DIR}/koha_${instance_name}-$(date +"%m-%d-%Y-%Hh%M").sql"
+  aws s3 cp "${DUMP_DIR}/koha_${instance_name}-$(date +"%m-%d-%Y-%Hh%M").sql" \
+    "$S3_BUCKET/database/${instance_name}/koha_${instance_name}-$(date +"%m-%d-%Y-%Hh%M").sql"
+
+  # Clean up temp file
+  rm "${DUMP_DIR}/koha_${instance_name}-$(date +"%m-%d-%Y-%Hh%M").sql"
 }
-# --- Locks -------------------------------------------------------
-LOCK_FILE=/tmp/$SCRIPT_NAME.lock
-if [ -f "$LOCK_FILE" ]; then
-        echo "Script is already running"
-        exit
-fi
 
-trap "rm -f $LOCK_FILE" EXIT
-touch $LOCK_FILE
+# Lock file to prevent concurrent execution
+LOCK_FILE="/tmp/${SCRIPT_NAME}.lock"
+(
+  flock -n 200 || {
+    echo "Script is already running"
+    exit 1
+  }
 
-# --- Body --------------------------------------------------------
-# Enable and start  Koha instances
-for val in $(koha-list); do
+  read "Enter the name of the instance(s) you wish to backup" -a instance_names
+  read -p "Enter the URL of the destination Amazon S3 bucket" S3_BUCKET
 
+  # Enable and start Koha instances
+  for instance_name in $instance_names; do
     # Dump and migrate Koha instance database from source to destination db server
-    DUMP_DB
+    dump_db "$instance_name"
+  done
+) 200>"$LOCK_FILE"
 
+# Help function
+show_help() {
+  echo "Usage: ${SCRIPT_NAME} [-h|--help] [-v|--version]"
+  echo "Dump and copy Koha databases to an S3 bucket."
+  echo ""
+  echo "Options:"
+  echo "  -h, --help    Show this help message and exit."
+  echo "  -v, --version Show the version number and exit."
+  echo ""
+}
+
+# Handle command-line options
+while [[ $# -gt 0 ]]; do
+  case $1 in
+    -h|--help)
+      show_help
+      exit 0
+      ;;
+    -v|--version)
+      echo "${SCRIPT_NAME} version ${VERSION}"
+      exit 0
+      ;;
+    *)
+      echo "Error: Unknown option: $1" >&2
+      show_help >&2
+      exit 1
+      ;;
+  esac
+  shift
 done
