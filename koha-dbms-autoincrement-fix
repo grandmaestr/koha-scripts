@@ -54,11 +54,8 @@ if [[ "$confirmation" == [yY] || "$confirmation" == [yY][eE][sS] ]]; then
     sudo systemctl restart mysql
 
     echo -e "\e[32mKoha autoincrement fix completed successfully.\e[0m"
-    echo -e "\e[33mPlease check the system logs if there were any errors or warnings during the script execution.\e[0m"
-
-    # Monitor the system log file for new lines containing 'koha' for up to 5 seconds
+    echo -e "\e[33mPlease check the system logs if there were any errors or warnings during the script execution.(run 'sudo tail -f /var/log/syslog | grep -i koha') \e[0m"
     
-    timeout 5s sudo tail -f /var/log/syslog | grep -i koha || true
      else
     echo "Aborted by user."
     fi
