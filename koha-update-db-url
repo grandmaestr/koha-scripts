@@ -135,6 +135,7 @@ for instancename in "${instance[@]}"; do
 
 # Recreate DB user
 mysql -h ${hostname} -u ${new_db_root} -p${new_db_pass} -e "
+CREATE DATABASE IF NOT EXISTS koha_${instancename};
 DROP USER IF EXISTS 'koha_${instancename}'@'%';
 CREATE USER IF NOT EXISTS 'koha_${instancename}'@'%' IDENTIFIED BY '${kohadbpwd}';
 GRANT ALL PRIVILEGES ON koha_${instancename}.* to 'koha_${instancename}'@'%';
