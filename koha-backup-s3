@@ -66,8 +66,6 @@ dump_instance() {
     else
         [ "$quiet" = "no" ] && echo "* DB to $dbdump"
         mysqldump $dbflag --no-tablespaces --host="$mysqlhost" --single-transaction --user="$mysqluser" --password="$mysqlpass" "$mysqldb" | gzip > "$dbdump"
-        chown "root:$name-koha" "$dbdump"
-        chmod g+r "$dbdump"
         
     instancefile="$name.conf"
 
