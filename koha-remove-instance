@@ -38,6 +38,24 @@ function help {
   exit 0
 }
 
+function is_service_running {
+  local service="$1"
+  local name="$2"
+  if systemctl is-active "$service@$name" >/dev/null; then
+    return 0
+  else
+    return 1
+  fi
+}
+
+function get_tmpdir {
+  if [ -z "${TMPDIR:-}" ]; then
+    echo "/tmp"
+  else
+    echo "$TMPDIR"
+  fi
+}
+
 # Parse the command-line arguments using getopt
 OPTS=$(getopt -o kph --long keep-mysql,purge-all,help -n "$(basename "$0")" -- "$@")
 if [ $? != 0 ] || [ $# -eq 0 ]; then
@@ -89,7 +107,7 @@ if [ -z "$NAMES" ] ; then
   exit 1
 fi
 
-for NAME in $N
+for NAME in $NAMES
 do
 
 # Does the directory (ie instance) name exist?
