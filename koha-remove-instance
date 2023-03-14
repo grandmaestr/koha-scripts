@@ -92,6 +92,8 @@ NAMES="$@"
 
 SITECONFDIR="/etc/koha/sites"
 
+TEMPDIR=$(get_tmpdir)
+
 # include helper functions
 if [ -f "/usr/share/koha/bin/koha-functions.sh" ]; then
   . "/usr/share/koha/bin/koha-functions.sh"
@@ -146,7 +148,6 @@ fi
 done
 
 # Remove temporary files
-TEMPDIR=$(get_tmpdir)
 if [ -d "$TEMPDIR/koha_${NAME}upload" ] && [ "$PURGEALL" != true ]; then
 rm -r "$TEMPDIR/koha${NAME}_upload"
 fi
