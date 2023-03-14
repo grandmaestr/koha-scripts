@@ -117,9 +117,9 @@ sqldump="$tempdir/$(basename $sqldump)"
 fi
 
 if [ $local_files == true ]; then
-zcat "$sqldump" | mysql --defaults-extra-file=/etc/mysql/koha-common.cnf
+sudo zcat "$sqldump" | mysql --defaults-extra-file=/etc/mysql/koha-common.cnf
 else
-aws s3 cp "$sqldump" - | zcat | mysql --defaults-extra-file=/etc/mysql/koha-common.cnf
+aws s3 cp "$sqldump" - | sudo zcat | mysql --defaults-extra-file=/etc/mysql/koha-common.cnf
 fi
 
 mysql --defaults-extra-file=/etc/mysql/koha-common.cnf << eof || true
