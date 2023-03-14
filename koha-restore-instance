@@ -6,18 +6,13 @@ set -ex
 function usage {
     echo "Usage: $0 [OPTIONS] sqldump configdump"
     echo "Options:"
-    echo "  -l, --local     Specify that the sql and tar files are local files (default)"
-    echo "  -r, --remote    Specify that the sql and tar files are remote files on S3"
     echo "  -h, --help      Show help"
     exit 1
 }
 
 # Parse command line arguments
-local_files=true
 while [[ "$#" -gt 0 ]]; do
     case $1 in
-        -l|--local) local_files=true; shift;;
-        -r|--remote) local_files=false; shift;;
         -h|--help) usage;;
         *) sqldump="$1"; configdump="$2"; shift; shift;;
     esac
@@ -29,12 +24,7 @@ if [ -z "$sqldump" ] || [ -z "$configdump" ]; then
 fi
 
 # Check if sqldump and configdump files exist
-if [ $local_files == true ]; then
-    if [ ! -f "$sqldump" ] || [ ! -f "$configdump" ]; then
-        echo "Error: sqldump or configdump file not found"
-        exit 1
-    fi
-else
+if [[ "$sqldump" == s3://* ]]; then
     if ! command -v aws &> /dev/null; then
         echo "Error: awscli is not installed"
         exit 1
@@ -43,10 +33,28 @@ else
         echo "Error: aws credentials not found"
         exit 1
     fi
-    if [ ! "$(aws s3 ls $sqldump)" ] || [ ! "$(aws s3 ls $configdump)" ]; then
-        echo "Error: sqldump or configdump file not found in S3 bucket"
+    tempdir=$(mktemp -d)
+    aws s3 cp "$sqldump" "$tempdir/"
+    sqldump="$tempdir/$(basename $sqldump)"
+fi
+
+if [[ "$configdump" == s3://* ]]; then
+    if ! command -v aws &> /dev/null; then
+        echo "Error: awscli is not installed"
         exit 1
     fi
+    if [ ! -f "$HOME/.aws/credentials" ]; then
+        echo "Error: aws credentials not found"
+        exit 1
+    fi
+    tempdir=$(mktemp -d)
+    aws s3 cp "$configdump" "$tempdir/"
+    configdump="$tempdir/$(basename $configdump)"
+fi
+
+if [ ! -f "$sqldump" ] || [ ! -f "$configdump" ]; then
+    echo "Error: sqldump or configdump file not found"
+    exit 1
 fi
 
 # include helper functions
@@ -88,17 +96,26 @@ koha-create-dirs "$name"
 
 
 # Unpack tarball.
-if [ $local_files] 
-then
 tar -C / -xf "$configdump"
-else
-aws s3 cp "$configdump" - | tar -C / -xzvf -
-fi
 
 # Re-create database and database user.
 mysqldb="koha_$name"
 mysqluser="koha_$name"
 mysqlpwd="$( xmlstarlet sel -t -v 'yazgfs/config/pass' /etc/koha/sites/$name/koha-conf.xml )"
+if [[ "$sqldump" == s3://* ]]; then
+if ! command -v aws &> /dev/null; then
+echo "Error: awscli is not installed"
+exit 1
+fi
+if [ ! -f "$HOME/.aws/credentials" ]; then
+echo "Error: aws credentials not found"
+exit 1
+fi
+tempdir=$(mktemp -d)
+aws s3 cp "$sqldump" "$tempdir/"
+sqldump="$tempdir/$(basename $sqldump)"
+fi
+
 if [ $local_files == true ]; then
 zcat "$sqldump" | mysql --defaults-extra-file=/etc/mysql/koha-common.cnf
 else
@@ -111,7 +128,18 @@ CREATE USER '$mysqluser' IDENTIFIED BY '$mysqlpwd';
 GRANT ALL PRIVILEGES ON $mysqldb.* TO '$mysqluser';
 FLUSH PRIVILEGES;
 eof
+
 koha-rebuild-zebra --full "$name"
 
 # Restart Apache.
+
 /etc/init.d/apache2 restart
+
+# Remove temporary files
+if [[ "$sqldump" == /tmp/ ]]; then
+rm "$sqldump"
+fi
+
+if [[ "$configdump" == /tmp/ ]]; then
+rm "$configdump"
+fi
