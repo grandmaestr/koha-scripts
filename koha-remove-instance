@@ -164,8 +164,6 @@ rm -r "$DIRECTORY"
 fi
 done
 
-To stop or kill all processes using the username before deleting the user, you can modify the code as follows:
-
 # Remove user
 if getent passwd "$NAME-koha" > /dev/null; then
   # Find all processes using the username and stop or kill them
