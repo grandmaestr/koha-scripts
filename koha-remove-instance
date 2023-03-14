@@ -75,11 +75,11 @@ SITECONFDIR="/etc/koha/sites"
 # There has to be a better way of excluding '.' from find. But this works.
 INSTANCES=$(get_instances)
 
-if [ -z $NAMES ] ; then
-    echo "Please specify a Koha instance name. Your choices are:"
-    echo "$INSTANCES"
-    exit 1
-fi
+# if [ -z $NAMES ] ; then
+#     echo "Please specify a Koha instance name. Your choices are:"
+#     echo "$INSTANCES"
+#     exit 1
+# fi
 
 for name in $NAMES
 do
