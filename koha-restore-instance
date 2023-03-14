@@ -101,7 +101,7 @@ sudo tar -C / -xf "$configdump"
 # Re-create database and database user.
 mysqldb="koha_$name"
 mysqluser="koha_$name"
-mysqlpwd="$( xmlstarlet sel -t -v 'yazgfs/config/pass' /etc/koha/sites/$name/koha-conf.xml )"
+mysqlpwd="$( sudo xmlstarlet sel -t -v 'yazgfs/config/pass' /etc/koha/sites/$name/koha-conf.xml )"
 if [[ "$sqldump" == s3://* ]]; then
 if ! command -v aws &> /dev/null; then
 echo "Error: awscli is not installed"
