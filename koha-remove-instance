@@ -1,13 +1,13 @@
-#!/bin/bash
 
 # This script is used to remove a Koha instance from the system.
 # This script is licensed under the terms of the MIT License.
 # See https://opensource.org/licenses/MIT for more information.
-set -e
+
+set -euo pipefail
 
 # Define the help function
 function help {
-  echo "Usage: script.sh [OPTIONS] INSTANCE1 [INSTANCE2 INSTANCE3 ...]"
+  echo "Usage: $0 [OPTIONS] INSTANCE1 [INSTANCE2 INSTANCE3 ...]"
   echo
   echo "Options:"
   echo "  -k, --keep-mysql       Keeps the MySQL database and user for the specified instances."
@@ -27,148 +27,132 @@ function help {
   echo
   echo "Examples:"
   echo "  Remove instance1 and instance2, keeping the MySQL database and user:"
-  echo "    script.sh -k instance1 instance2"
+  echo "    $0 -k instance1 instance2"
   echo
   echo "  Remove instance3 and instance4, purging all instance files:"
-  echo "    script.sh -p instance3 instance4"
+  echo "    $0 -p instance3 instance4"
   echo
   echo "  Remove instance5, purging all instance files and removing the MySQL database and user:"
-  echo "    script.sh -pk instance5"
+  echo "    $0 -pk instance5"
   echo
   exit 0
 }
 
 # Parse the command-line arguments using getopt
-args=$(getopt -l keep-mysql,purge-all -o kp -n $0 -- "$@")
-eval set -- $args
-
-# If no arguments were provided, display help and exit
-if [ $# -eq 0 ]; then
+OPTS=$(getopt -o kph --long keep-mysql,purge-all,help -n "$(basename "$0")" -- "$@")
+if [ $? != 0 ] || [ $# -eq 0 ]; then
   help
 fi
+eval set -- "$OPTS"
 
-# include helper functions
-if [ -f "/usr/share/koha/bin/koha-functions.sh" ]; then
-    . "/usr/share/koha/bin/koha-functions.sh"
-else
-    echo "Error: /usr/share/koha/bin/koha-functions.sh not present." 1>&2
-    exit 1
-fi
-
-args=$(getopt -l keep-mysql,purge-all -o kp -n $0 -- "$@")
-eval set -- $args
-while [ ! -z "$1" ]
-do
-    case "$1" in
-         -k|--keep-mysql) keepmysql=1;;
-         -p|--purge-all) purgeall=1;;
-             # purgeall removes all instance files in var/lib/koha and var/spool/koha
-         --) shift; break;;
-          *) break;;
-    esac
-    shift
+KEEPMYSQL=false
+PURGEALL=false
+while true; do
+  case "$1" in
+    -k | --keep-mysql )
+      KEEPMYSQL=true
+      shift
+      ;;
+    -p | --purge-all )
+      PURGEALL=true
+      shift
+      ;;
+    -h | --help )
+      help
+      ;;
+    -- )
+      shift
+      break
+      ;;
+    * )
+      break
+      ;;
+  esac
 done
 
 NAMES="$@"
 
 SITECONFDIR="/etc/koha/sites"
-# There has to be a better way of excluding '.' from find. But this works.
-INSTANCES=$(get_instances)
 
-# if [ -z $NAMES ] ; then
-#     echo "Please specify a Koha instance name. Your choices are:"
-#     echo "$INSTANCES"
-#     exit 1
-# fi
-
-for name in $NAMES
-do
-    # Does the directory (ie instance) name exist?
-    if [ ! -d $SITECONFDIR/$name ] ; then
-     echo Koha configuration directory for instance \"$name\" does not exist, please specify a valid Koha instance
+# include helper functions
+if [ -f "/usr/share/koha/bin/koha-functions.sh" ]; then
+  . "/usr/share/koha/bin/koha-functions.sh"
+else
+  echo "Error: /usr/share/koha/bin/koha-functions.sh not present." 1>&2
   exit 1
-    fi
+fi
 
-    echo "Removing Koha instance $name"
-    mysql_hostname="localhost"
-    if [ "$keepmysql" != "1" ]
-    then
-    mysql --defaults-extra-file=/etc/mysql/koha-common.cnf <<eof
-DROP USER IF EXISTS \`koha_$name\`@\`%\`;
-DROP USER IF EXISTS \`koha_$name\`@\`$mysql_hostname\`;
-DROP DATABASE IF EXISTS \`koha_$name\`;
+if [ -z "$NAMES" ] ; then
+  echo "Please specify a Koha instance name. Your choices are:"
+  INSTANCES=$(get_instances)
+  echo "$INSTANCES"
+  exit 1
+fi
+
+for NAME in $N
+do
+
+# Does the directory (ie instance) name exist?
+if [ ! -d "$SITECONFDIR/$NAME" ] ; then
+echo "Koha configuration directory for instance "$NAME" does not exist, please specify a valid Koha instance"
+exit 1
+fi
+
+echo "Removing Koha instance $NAME"
+MYSQL_HOSTNAME="localhost"
+if [ "$KEEPMYSQL" != true ]; then
+mysql --defaults-extra-file=/etc/mysql/koha-common.cnf <<eof
+DROP USER IF EXISTS `koha_$NAME`@`%`;
+DROP USER IF EXISTS `koha_$NAME`@`$MYSQL_HOSTNAME`;
+DROP DATABASE IF EXISTS `koha_$NAME`;
 FLUSH PRIVILEGES;
 eof
-    fi #`
+fi
 
-    # Stop the Zebra server if needed
-    if is_zebra_running $name; then
-        koha-zebra --stop $name || /bin/true
-    fi
-    # Stop the indexer daemon if needed
-    if is_indexer_running $name; then
-        koha-indexer --stop $name || /bin/true
-    fi
-    # Stop the worker daemon if needed
-    if is_worker_running $name; then
-        koha-worker --stop $name || /bin/true
-    fi
-    # Stop the Plack server if needed
-    if is_plack_running $name; then
-        koha-plack --stop $name || /bin/true
-    fi
-    # Stop the SIP server if needed
-    if is_sip_running $name; then
-        koha-sip --stop $name || /bin/true
-    fi
-
-    instancefile=$(get_apache_config_for $name)
-    le_opacdomain=$(letsencrypt_get_opacdomain_for $name)
-
-    [ -f "$instancefile" ]  && \
-        rm "$instancefile"
-    [ -f "/etc/koha/sites/$name/koha-conf.xml" ] && \
-        rm "/etc/koha/sites/$name/koha-conf.xml"
-    [ -f "/etc/koha/sites/$name/log4perl.conf" ] && \
-        rm "/etc/koha/sites/$name/log4perl.conf"
-    [ -f "/etc/koha/sites/$name/zebra-biblios.cfg" ] && \
-        rm "/etc/koha/sites/$name/zebra-biblios.cfg"
-    [ -f "/etc/koha/sites/$name/zebra-biblios-dom.cfg" ] && \
-        rm "/etc/koha/sites/$name/zebra-biblios-dom.cfg"
-    [ -f "/etc/koha/sites/$name/zebra-authorities.cfg" ] && \
-        rm "/etc/koha/sites/$name/zebra-authorities.cfg"
-    [ -f "/etc/koha/sites/$name/zebra-authorities-dom.cfg" ] && \
-        rm "/etc/koha/sites/$name/zebra-authorities-dom.cfg"
-    [ -f "/etc/koha/sites/$name/zebra.passwd" ] && \
-        rm "/etc/koha/sites/$name/zebra.passwd"
-
-    tempdir=$(get_tmpdir)
-    [ -d "$tempdir/koha_${name}_upload" ] && \
-        # Temporary uploads can be discarded, apart from purgeall
-        rm -r "$tempdir/koha_${name}_upload"
-
-    [ -f "/var/lib/koha/$name/letsencrypt.enabled" ] && \
-        rm -r "/var/lib/koha/$name/letsencrypt.enabled"
-    [ -f "/etc/letsencrypt/renewal/$le_opacdomain.conf" ] && \
-        rm -r "/etc/letsencrypt/renewal/$le_opacdomain.conf"
-    # Maybe a user has left something in the config directory they want to keep? We won't delete it here, nor throw an error if the have.
-    [ -d "/etc/koha/sites/$name" ] && \
-        rmdir --ignore-fail-on-non-empty "/etc/koha/sites/$name"
-    [ -d "/var/lock/koha/$name" ] && \
-        rm -r "/var/lock/koha/$name"
-    [ -d "/var/log/koha/$name" ] && \
-        rm -r "/var/log/koha/$name"
-    [ -d "/var/cache/koha/$name" ] && \
-        rm -r "/var/cache/koha/$name"
-    [ -d "/var/run/koha/$name" ] && \
-        rm -r "/var/run/koha/$name"
-    [ "$purgeall" = "1" ] && [ -d "/var/lib/koha/$name" ] && \
-        rm -r "/var/lib/koha/$name"
-    [ "$purgeall" = "1" ] && [ -d "/var/spool/koha/$name" ] && \
-        rm -r "/var/spool/koha/$name"
-    getent passwd "$name-koha" > /dev/null && deluser --quiet "$name-koha"
-    # in case the site has already been disabled, we don't want to break the loop now.
-    a2dissite "$name" > /dev/null 2>&1 || a2dissite "${name}.conf" > /dev/null 2>&1 || /bin/true
+# Stop the Koha-related services
+SERVICES=( "koha-zebra" "koha-indexer" "koha-worker" "koha-plack" "koha-sip" )
+for SERVICE in "${SERVICES[@]}"; do
+if is_service_running "$SERVICE" "$NAME"; then
+$SERVICE --stop "$NAME" || true
+fi
 done
 
-service apache2 restart
+# Remove configuration files
+INSTANCEFILE=$(get_apache_config_for "$NAME")
+LE_OPACDOMAIN=$(letsencrypt_get_opacdomain_for "$NAME")
+
+for FILE in "$INSTANCEFILE" "/etc/koha/sites/$NAME/koha-conf.xml" "/etc/koha/sites/$NAME/log4perl.conf" "/etc/koha/sites/$NAME/zebra-biblios.cfg" "/etc/koha/sites/$NAME/zebra-biblios-dom.cfg" "/etc/koha/sites/$NAME/zebra-authorities.cfg" "/etc/koha/sites/$NAME/zebra-authorities-dom.cfg" "/etc/koha/sites/$NAME/zebra.passwd"; do
+if [ -f "$FILE" ]; then
+rm "$FILE"
+fi
+done
+
+# Remove temporary files
+TEMPDIR=$(get_tmpdir)
+if [ -d "$TEMPDIR/koha_${NAME}upload" ] && [ "$PURGEALL" != true ]; then
+rm -r "$TEMPDIR/koha${NAME}_upload"
+fi
+
+# Remove instance files
+DIRECTORIES=( "/var/lib/koha/$NAME/letsencrypt.enabled" "/etc/letsencrypt/renewal/$LE_OPACDOMAIN.conf" "/etc/koha/sites/$NAME" "/var/lock/koha/$NAME" "/var/log/koha/$NAME" "/var/cache/koha/$NAME" "/var/run/koha/$NAME" )
+if [ "$PURGEALL" = true ]; then
+DIRECTORIES+=( "/var/lib/koha/$NAME" "/var/spool/koha/$NAME" )
+fi
+
+for DIRECTORY in "${DIRECTORIES[@]}"; do
+if [ -e "$DIRECTORY" ]; then
+rm -r "$DIRECTORY"
+fi
+done
+
+# Remove user
+if getent passwd "$NAME-koha" > /dev/null; then
+deluser --quiet "$NAME-koha"
+fi
+
+# Disable site
+a2dissite "$NAME" > /dev/null 2>&1 || a2dissite "${NAME}.conf" > /dev/null 2>&1 || true
+done
+
+# Restart Apache
+systemctl restart apache2
