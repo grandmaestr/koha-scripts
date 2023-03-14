@@ -86,17 +86,17 @@ fi
 name=$(tar tf "$configdump" | 
        sed -n '/^etc\/koha\/sites\/\([^/]*\)\/$/s//\1/p')
 username="$name-koha"
-adduser --no-create-home --disabled-login --gecos "Koha instance $username" \
+sudo adduser --no-create-home --disabled-login --gecos "Koha instance $username" \
     --home "/var/lib/koha/$name" --quiet "$username"
 
 
 # Create dirs. Some of them will be in the tarball, but not all, e.g.,
 # /var/run and /var/lock.
-koha-create-dirs "$name"
+sudo koha-create-dirs "$name"
 
 
 # Unpack tarball.
-tar -C / -xf "$configdump"
+sudo tar -C / -xf "$configdump"
 
 # Re-create database and database user.
 mysqldb="koha_$name"
@@ -129,11 +129,11 @@ GRANT ALL PRIVILEGES ON $mysqldb.* TO '$mysqluser';
 FLUSH PRIVILEGES;
 eof
 
-koha-rebuild-zebra --full "$name"
+sudo koha-rebuild-zebra --full "$name"
 
 # Restart Apache.
 
-/etc/init.d/apache2 restart
+sudo /etc/init.d/apache2 restart
 
 # Remove temporary files
 if [[ "$sqldump" == /tmp/ ]]; then
