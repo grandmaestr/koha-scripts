@@ -141,7 +141,7 @@ done
 INSTANCEFILE=$(get_apache_config_for "$NAME")
 LE_OPACDOMAIN=$(letsencrypt_get_opacdomain_for "$NAME")
 
-for FILE in "$INSTANCEFILE" "/etc/koha/sites/$NAME/koha-conf.xml" "/etc/koha/sites/$NAME/log4perl.conf" "/etc/koha/sites/$NAME/zebra-biblios.cfg" "/etc/koha/sites/$NAME/zebra-biblios-dom.cfg" "/etc/koha/sites/$NAME/zebra-authorities.cfg" "/etc/koha/sites/$NAME/zebra-authorities-dom.cfg" "/etc/koha/sites/$NAME/zebra.passwd"; do
+for FILE in "$INSTANCEFILE" "/etc/koha/sites/$NAME/koha-conf.xml" "/etc/koha/sites/$NAME/log4perl.conf" "/etc/koha/sites/$NAME/zebra-biblios.cfg" "/etc/koha/sites/$NAME/zebra-biblios-dom.cfg" "/etc/koha/sites/$NAME/zebra-authorities.cfg" "/etc/koha/sites/$NAME/zebra-authorities-dom.cfg" "/etc/koha/sites/$NAME/zebra.passwd" "/etc/apache2/sites-enabled/$NAME.conf"; do
 if [ -f "$FILE" ]; then
 rm "$FILE"
 fi
