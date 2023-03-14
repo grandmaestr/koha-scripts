@@ -1,4 +1,4 @@
-
+#!/bin/bash
 # This script is used to remove a Koha instance from the system.
 # This script is licensed under the terms of the MIT License.
 # See https://opensource.org/licenses/MIT for more information.
