@@ -164,9 +164,22 @@ rm -r "$DIRECTORY"
 fi
 done
 
+To stop or kill all processes using the username before deleting the user, you can modify the code as follows:
+
 # Remove user
 if getent passwd "$NAME-koha" > /dev/null; then
-deluser --quiet "$NAME-koha"
+  # Find all processes using the username and stop or kill them
+  pids=$(pgrep -U "$NAME-koha")
+  if [ -n "$pids" ]; then
+    echo "Stopping or killing processes for user $NAME-koha..."
+    # Try stopping the processes gracefully first
+    kill -s SIGTERM $pids || true
+    # If the processes are still running, force kill them
+    kill -s SIGKILL $pids || true
+  fi
+
+  # Delete the user
+  deluser --quiet "$NAME-koha"
 fi
 
 # Disable site
