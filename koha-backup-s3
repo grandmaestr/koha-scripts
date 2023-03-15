@@ -84,7 +84,10 @@ dump_instance() {
         "etc/apache2/sites-enabled/$instancefile" \
         "var/lib/koha/$name" \
         "var/log/koha/$name"
-        
+
+    # Make the dump files readable and writeable by the current user.
+    sudo chown $(whoami):$(whoami) "$dbdump" "$metadump"
+
     if [ -n "$s3_url" ]; then
         [ "$quiet" = "no" ] && echo "* copying backups to S3 bucket: $s3_url"
         aws s3 cp "$dbdump" "$s3_url/$name/$name-$date.sql.gz"
