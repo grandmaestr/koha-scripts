@@ -12,6 +12,7 @@
 #
 # MIT License
 # ------------------------------------------------------------------
+set -euo pipefail
 
 # Set the name of the script to a variable
 SCRIPT_NAME="$(basename "${0}")"
