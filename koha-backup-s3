@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -euox pipefail
+set -euo pipefail
 
 # Include helper functions
 if [ -f "/usr/share/koha/bin/koha-functions.sh" ]; then
@@ -28,13 +28,12 @@ usage() {
     cat <<EOF
 $scriptname
 
-This script dumps your Koha instance data for backup or migration.
+This script dumps your Koha instance data to an Amazon S3 bucket for backup or migration. It requires the awscli to be installed and configured.
 
-The schema only option can be used to compare your existing database schema
-to the expected Koha structure.
+The schema only option can be used to compare your existing database schema to the expected Koha structure. If you specify this option, the configuration files will be skipped from the backup. 
 
 Usage:
-$scriptname [--quiet|-q] [--exclude-indexes] [--without-db-name] [-i instance1 [instance2...]] [-s s3://bucket-name]
+$scriptname [--quiet|-q] [--exclude-indexes] [--schema-only] [--without-db-name] [-i instance1 [instance2...]] [-s s3://bucket-name]
 $scriptname -h|--help
 
 Options:
