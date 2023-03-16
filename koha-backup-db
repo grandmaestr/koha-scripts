@@ -16,16 +16,17 @@ NC='\033[0m' # No Color
 # Help function
 function help_message() {
   cat <<EOF
-Usage: ${SCRIPT_NAME} -i <instance_id> [-h] [-v]
+Usage: ${SCRIPT_NAME} -i <instance_id> [-d <dump_directory>] [-h] [-v]
 
 Options:
   -i: The name of the koha instance. Can be specified multiple times.
+  -d: The path of the dump directory. If not specified, a temporary directory will be used.
   -h: Print help message.
   -v: Print version.
 
 Examples:
   ${SCRIPT_NAME} -i library
-  ${SCRIPT_NAME} -i library1 -i library2
+  ${SCRIPT_NAME} -i library1 -i library2 -d /path/to/dump/directory
 EOF
 }
 
@@ -52,6 +53,15 @@ while [[ $# -gt 0 ]]; do
         exit 1
       fi
       instance_ids+=("$2")
+      shift
+      ;;
+    -d)
+      if [[ -z $2 ]]; then
+        echo -e "${RED}Error: dump directory path is missing.${NC}" >&2
+        help_message >&2
+        exit 1
+      fi
+      DUMP_DIR="$2"
       shift
       ;;
     -v|--version)
@@ -81,8 +91,10 @@ fi
 # Check if required packages are installed
 check_requirements
 
-# Set up temporary directory for SQL dump
-DUMP_DIR=$(mktemp -d)
+# Set up temporary directory for SQL dump if not specified
+if [[ -z ${DUMP_DIR+x} ]]; then
+  DUMP_DIR=$(mktemp -d)
+fi
 
 # Function to dump database
 dump_db() {
@@ -94,13 +106,14 @@ dump_db() {
   # Retrieve the Koha user, password, and database hostname
   kohadbpwd=$(sudo xmlstarlet sel -t -v 'yazgfs/config/pass' "$koha_conf")
   kohadbuser="koha_${instance_name}"
-  kohadbhost=$(sudo xmlstarlet sel -t -v 'yazgfs/config/hostname' "$koha_conf")
+  kohadbhost=$(sudo xmlstarlet sel -t -v 'yazgfs/config/
+  hostname' "$koha_conf")
   date=$(date +"%m-%d-%Y-%Hh%M")
 
-  # Dump Koha database
-  mysqldump -h "$kohadbhost" -u "$kohadbuser" -p"$kohadbpwd" \
-    --single-transaction --databases --no-tablespaces "koha_${instance_name}" > "${DUMP_DIR}/koha_${instance_name}-$date.sql"
-}
+# Dump Koha database
+  mysqldump -h "$kohadbhost" -u "$kohadbuser" -p"$kohadbpwd"
+  --single-transaction --databases --no-tablespaces "koha_${instance_name}" > "${DUMP_DIR}/koha_${instance_name}-$date.sql"
+  }
 
 # Lock file to prevent concurrent execution
 LOCK_FILE="/tmp/${SCRIPT_NAME}.lock"
@@ -115,3 +128,4 @@ for instance_name in "${instance_ids[@]}"; do
 dump_db "$instance_name"
 done
 ) 200>"$LOCK_FILE"
+
