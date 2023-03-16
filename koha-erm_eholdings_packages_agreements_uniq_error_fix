@@ -4,16 +4,6 @@
 # GitHub: @grandmaestr
 # Title: koha-erm_eholdings_packages_agreements_uniq_error_fix
 # Description: 
-# You may encounter the following error while upgrading from Koha 22.06 (or earlier) to 22.11 (or later):
-##################
-#       Upgrading database schema for kohadev
-#       Upgrade to 22.06.00.084  [08:52:30]: Bug 31162 - Add primary key to erm_eholdings_packages_agreements
-#       ERROR - {UNKNOWN}: DBI Exception: DBD::mysql::db do failed: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'CONSTRAINT erm_eholdings_packages_agreements_uniq,
-#                 ADD PRIMARY K' at line 3 at /usr/share/koha/lib/C4/Installer.pm line 739
-#################
-# This script attempts to fix this error by dropping and recreating the erm_eholdings_packages_agreements table. The existing data in the erm_eholdings_packages_agreements table will be ***DESTROYED*** during the table drop operation so please make sure you understand what you are doing and make a  backup of your database and have a recovery procedure in place before running this script.
-
-# THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # ------------------------------------------------------------------
 set -euo pipefail
 
@@ -157,27 +147,6 @@ for val in "${instanceid[@]}"; do
 
                         printf "The drop and recreate operation for the erm_eholdings_packages_agreements table for $val is complete. \n"
                         sleep 1s
-
-                #         # Prompt to check and restore the original database and configuration files
-                #         printf "The database repair is complete. Check if $val is running correctly. \n If anything is amiss and you need to restore your database and config files to the original state, \n answer y(es) to the next prompt.\n"
-                #         while true; do
-                #                 read -p "Restore database and configuration files?" response 
-                #                 case $response in
-                #                         [yY][eE][sS]|[yY] )
-                #                                 Restore;
-                #                                 printf "The original database and configuration has been restored. \n";
-                #                                 break;;
-                                        
-                #                         [nN][oO]|[nN] ) 
-                #                                 printf "Changes kept \n";
-                #                                 break;;
-
-                #                         [qQ][uU][iI][tT] | [qQ] )
-                #                                 exit;;
-
-                #                         * ) echo Invalid response.Try again;;
-                #                 esac
-                #         done
 			break;;
 
                 [nN][oO]|[nN] ) echo No changes have been made;
