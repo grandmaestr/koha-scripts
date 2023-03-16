@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -euox pipefail
+set -euo pipefail
 
 if [ "$(id -u)" != "0" ]; then
     echo "Error: This script must be run with sudo privileges."
