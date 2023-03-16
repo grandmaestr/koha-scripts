@@ -141,8 +141,9 @@ instances+=("$1")
 shift
 done ;;
 -s)
-    s3_url="$1"
-    shift;;
+shift
+s3_url="$1"
+shift;;
 -h|--help)
 usage ; exit 0 ;;
 -q|--quiet)
