@@ -83,115 +83,95 @@ dump_instance() {
     if [ "$schema_only" = "yes" ]; then
         schemadump="$backupdir/$name-schema-$date.sql"
         [ "$quiet" = "no" ] && echo "* schema to $schemadump"
-        mysqldump $dbflag --no-tablespaces -d --host="$mysqlhost" --single-transaction --user="$mysqluser" --password="$mysqlpass" "$mysqldb" | sed --expression='s/ AUTO_INCREMENT=[0-9]\+//' > "$schemadump"
-    else
-        [ "$quiet" = "no" ] && echo "* DB to $dbdump"
-        mysqldump $dbflag --no-tablespaces --host="$mysqlhost" --single-transaction --user="$mysqluser" --password="$mysqlpass" "$mysqldb" | gzip > "$dbdump"
+           mysqldump $dbflag --no-tablespaces -d --host="$mysqlhost" --single-transaction --user="$mysqluser" --password="$mysqlpass" "$mysqldb" | sed --expression='s/ AUTO_INCREMENT=[0-9]\+//' > "$schemadump"
+else
+    [ "$quiet" = "no" ] && echo "* DB to $dbdump"
+    mysqldump $dbflag --no-tablespaces --host="$mysqlhost" --single-transaction --user="$mysqluser" --password="$mysqlpass" "$mysqldb" | gzip > "$dbdump"
 
-        instancefile="$name.conf"
+    instancefile="$name.conf"
 
-        # Dump configs, logs, etc.
-        metadump="$backupdir/$name-$date.tar.gz"
-        [ "$quiet" = "no" ] && echo "* configs, logs to $metadump"
+    # Dump configs, logs, etc.
+    metadump="$backupdir/$name-$date.tar.gz"
+    [ "$quiet" = "no" ] && echo "* configs, logs to $metadump"
 
-        if [ "$exclude_indexes" = "yes" ]; then
-            excludes="--exclude=var/lib/koha/$name/biblios \
-                      --exclude=var/lib/koha/$name/authorities"
-        fi
-
-        sudo tar -czf "$metadump" -C / $excludes \
-            "etc/koha/sites/$name" \
-            "etc/apache2/sites-available/$instancefile" \
-            "etc/apache2/sites-enabled/$instancefile" \
-            "var/lib/koha/$name" \
-            "var/log/koha/$name"
-
-        # Make the dump files readable and writeable by the current user.
-        sudo chown $(whoami):$(whoami) "$dbdump" "$metadump"
-
-        if [ -n "$s3_url" ]; then
-            [ "$quiet" = "no" ] && echo "* copying backups to S3 bucket: $s3_url"
-            aws s3 cp "$dbdump" "$s3_url/$name/$name-$date.sql.gz"
-            aws s3 cp "$metadump" "$s3_url/$name/$name-$date.tar.gz"
-        fi
-
-        [ "$quiet" = "no" ] && echo "Done."
+    if [ "$exclude_indexes" = "yes" ]; then
+        excludes="--exclude=var/lib/koha/$name/biblios \
+                  --exclude=var/lib/koha/$name/authorities"
     fi
+
+    sudo tar -czf "$metadump" -C / $excludes \
+        "etc/koha/sites/$name" \
+        "etc/apache2/sites-available/$instancefile" \
+        "etc/apache2/sites-enabled/$instancefile" \
+        "var/lib/koha/$name" \
+        "var/log/koha/$name"
+
+    # Make the dump files readable and writeable by the current user.
+    sudo chown $(whoami):$(whoami) "$dbdump" "$metadump"
+
+    if [ -n "$s3_url" ]; then
+        [ "$quiet" = "no" ] && echo "* copying backups to S3 bucket: $s3_url"
+        aws s3 cp "$dbdump" "$s3_url/$name/$name-$date.sql.gz"
+        aws s3 cp "$metadump" "$s3_url/$name/$name-$date.tar.gz"
+    fi
+
+    [ "$quiet" = "no" ] && echo "Done."
+fi
 }
 
+if [ $# -eq 0 ]; then
+usage
+exit 1
+fi
+
 while [ $# -gt 0 ]; do
-    case "$1" in
-        --schema-only)
-            schema_only="yes"
-            shift ;;
-        --exclude-indexes)
-            exclude_indexes="yes"
-            shift ;;
-        --without-db-name)
-            without_db_name="yes"
-            shift ;;
-        -i)
-            shift
-            while [ $# -gt 0 ] && [[ "$1" != "" ]] && ! [[ "$1" =~ ^- ]]; do
-                instances+=("$1")
-                shift
-            done ;;
-        -s)
-            shift
-            s3_url="${1:-}"
-            shift ;;
-        -h|--help)
-            usage ; exit 0 ;;
-        -q|--quiet)
-            quiet="yes"
-            shift ;;
-        -*)
-            echo "Error: invalid option switch ("$1")" >&2; usage; exit 1 ;;
-        *)
-            # We expect the remaining stuff are the instance names
-            break ;;
-    esac
+case "$1" in
+--schema-only)
+schema_only="yes"
+shift ;;
+--exclude-indexes)
+exclude_indexes="yes"
+shift ;;
+--without-db-name)
+without_db_name="yes"
+shift ;;
+-i)
+shift
+while [ $# -gt 0 ] && [[ "$1" != "" ]] && ! [[ "$1" =~ ^- ]]; do
+instances+=("$1")
+shift
+done ;;
+-s)
+shift
+s3_url="${1:-}"
+shift ;;
+-h|--help)
+usage ; exit 0 ;;
+-q|--quiet)
+quiet="yes"
+shift ;;
+-*)
+echo "Error: invalid option switch ("$1")" >&2; usage; exit 1 ;;
+*)
+# We expect the remaining stuff are the instance names
+instances+=("$1")
+shift ;;
+esac
 done
 
-# Read instance names
-if [ "${#instances[@]}" -gt 0 ]; then
-    # We have at least one instance name
-    for name in "${instances[@]}"; do
-        if is_instance "$name"; then
-            dump_instance "$name"
-        else
-            if [ "$quiet" = "no" ]; then
-                echo "Error: Invalid instance name $name" >&2
-            fi
-            exit 1
-        fi
-    done
-else
-    if [ "$quiet" = "no" ]; then
-        echo "Error: you must provide at least one instance name" >&2
-    fi
-    usage; exit 1
+if [ "${#instances[@]}" -eq 0 ]; then
+echo "Error: you must provide at least one instance name" >&2
+usage
+exit 1
 fi
+
+for name in "${instances[@]}"; do
+if ! is_instance "$name"; then
+echo "Error: Invalid instance name $name" >&2
+exit 1
+fi
+dump_instance "$name"
+done
 
 exit 0
 
-if [ "${#instances[@]}" -gt 0 ]; then
-    # We have at least one instance name
-    for name in "${instances[@]}"; do
-        if is_instance "$name"; then
-            dump_instance "$name"
-        else
-            if [ "$quiet" = "no" ]; then
-                echo "Error: Invalid instance name $name" >&2
-            fi
-            exit 1
-        fi
-    done
-else
-    if [ "$quiet" = "no" ]; then
-        echo "Error: you must provide at least one instance name" >&2
-    fi
-    usage; exit 1
-fi
-
-exit 0
