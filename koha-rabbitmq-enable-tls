@@ -1,5 +1,5 @@
 #!/bin/bash
-set -e
+set -euo pipefail
 
 # Usage message
 usage() {
@@ -18,7 +18,7 @@ usage() {
 # Default values
 CERT_DIR="/etc/ssl/certs/rabbitmq"
 CERT_PASSWORD="bunnies"
-INSTANCE=("")
+INSTANCE=()
 
 # Parse options and arguments
 while [[ $# -gt 0 ]]; do
@@ -52,6 +52,14 @@ while [[ $# -gt 0 ]]; do
             ;;
     esac
 done
+
+# Check if instance option is provided
+if [ ${#INSTANCE[@]} -eq 0 ]; then
+    echo "Error: --instance option is required."
+    echo ""
+    usage
+    exit 1
+fi
 
 # Backup the Koha database and configs in case of recovery
 sudo koha-run-backups >/dev/null 2>&1
