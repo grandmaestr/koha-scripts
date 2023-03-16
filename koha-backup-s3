@@ -148,10 +148,8 @@ shift
 done ;;
 -s)
 shift
-while [ $# -gt 0 ] && [[ "$1" != "" ]] && ! [[ "$1" =~ ^- ]]; do
 s3_url="${1:-}"
 shift ;;
-done ;;
 -h|--help)
 usage ; exit 0 ;;
 -q|--quiet)
@@ -165,6 +163,12 @@ instances+=("$1")
 shift ;;
 esac
 done
+
+if [ -z "$s3_url" ]; then
+    echo "Error: you must provide a valid URL to the S3 bucket" >&2
+    usage
+    exit 1
+fi
 
 if [ "${#instances[@]}" -eq 0 ]; then
 echo "Error: you must provide at least one instance name" >&2
