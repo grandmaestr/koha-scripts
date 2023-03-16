@@ -111,8 +111,7 @@ dump_db() {
   date=$(date +"%m-%d-%Y-%Hh%M")
 
 # Dump Koha database
-  mysqldump -h "$kohadbhost" -u "$kohadbuser" -p"$kohadbpwd"
-  --single-transaction --databases --no-tablespaces "koha_${instance_name}" > "${DUMP_DIR}/koha_${instance_name}-$date.sql"
+  mysqldump -h "$kohadbhost" -u "$kohadbuser" -p"$kohadbpwd" --single-transaction --databases --no-tablespaces "koha_${instance_name}" > "${DUMP_DIR}/koha_${instance_name}-$date.sql"
   }
 
 # Lock file to prevent concurrent execution
@@ -126,6 +125,7 @@ exit 1
 # Dump Koha instances
 for instance_name in "${instance_ids[@]}"; do
 dump_db "$instance_name"
+echo "The ${instance_name} database has been saved to ${DUMP_DIR}/koha_${instance_name}-$date.sql"
 done
 ) 200>"$LOCK_FILE"
 
