@@ -132,13 +132,13 @@ while [ $# -gt 0 ]; do
             shift ;;
         -i)
             shift
-            while [ $# -gt 0 ] && ! [[ "$1" =~ ^- ]]; do
+            while [ $# -gt 0 ] && [[ "$1" != "" ]] && ! [[ "$1" =~ ^- ]]; do
                 instances+=("$1")
                 shift
             done ;;
         -s)
             shift
-            s3_url="$1"
+            s3_url="${1:-}"
             shift ;;
         -h|--help)
             usage ; exit 0 ;;
