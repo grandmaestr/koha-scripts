@@ -19,7 +19,7 @@ exclude_indexes="no"
 without_db_name="no"
 schema_only="no"
 instances=()
-s3_url=""
+# s3_url=""
 excludes=""
 
 usage() {
