@@ -1,18 +1,18 @@
 #!/bin/bash
 
 if [ "$(id -u)" != "0" ]; then
-    echo "This script must be run as root or by a user with sudo privileges" 1>&2
-    exit 1
+  echo "This script must be run as root or by a user with sudo privileges" >&2
+  exit 1
 fi
 
 set -euox pipefail
 
 # Include helper functions
 if [ -f "/usr/share/koha/bin/koha-functions.sh" ]; then
-    . "/usr/share/koha/bin/koha-functions.sh"
+  . "/usr/share/koha/bin/koha-functions.sh"
 else
-    echo "Error: /usr/share/koha/bin/koha-functions.sh not present." >&2
-    exit 1
+  echo "Error: /usr/share/koha/bin/koha-functions.sh not present." >&2
+  exit 1
 fi
 
 # Default values
@@ -25,9 +25,9 @@ s3_url=""
 excludes=""
 
 usage() {
-    local scriptname=$(basename "$0")
+  local scriptname=$(basename "$0")
 
-    cat <<EOF
+  cat <<EOF
 $scriptname
 
 This script dumps your Koha instance data to an Amazon S3 bucket for backup or migration. It requires the awscli to be installed and configured.
@@ -39,85 +39,85 @@ $scriptname [--quiet|-q] [--exclude-indexes] [--schema-only] [--without-db-name]
 $scriptname -h|--help
 
 Options:
-    --schema-only         Dump only the database schema
-                          Example: $scriptname --schema-only -i instance1
-                          
-    --exclude-indexes     Exclude Zebra indexes from the backup
-                          Example: $scriptname --exclude-indexes -i instance1
-                          
-    --without-db-name     Do not include the database name in the dump
-                          Example: $scriptname --without-db-name -i instance1
-                          
-    -i                    One or more Koha instance names to dump (separated by spaces)
-                          Example: $scriptname -i instance1 instance2
-                          
-    -s                    URL of the S3 bucket to copy the backups
-                          Example: $scriptname -i instance1 -s s3://bucket-name
-                          
-    --quiet|-q            Make the script avoid printing to STDOUT
-                          (useful for calling from another script)
-                          Example: $scriptname -q -i instance1
-                          
-    --help|-h             Display this help message
-                          Example: $scriptname -h
+  --schema-only         Dump only the database schema
+                        Example: $scriptname --schema-only -i instance1
+
+  --exclude-indexes     Exclude Zebra indexes from the backup
+                        Example: $scriptname --exclude-indexes -i instance1
+
+  --without-db-name     Do not include the database name in the dump
+                        Example: $scriptname --without-db-name -i instance1
+
+  -i                    One or more Koha instance names to dump (separated by spaces)
+                        Example: $scriptname -i instance1 instance2
+
+  -s                    URL of the S3 bucket to copy the backups
+                        Example: $scriptname -i instance1 -s s3://bucket-name
+
+  --quiet|-q            Make the script avoid printing to STDOUT
+                        (useful for calling from another script)
+                        Example: $scriptname -q -i instance1
+
+  --help|-h             Display this help message
+                        Example: $scriptname -h
 EOF
 }
 
 dump_instance() {
-    local name="$1"
+  local name="$1"
 
-    kohaconfig="/etc/koha/sites/$name/koha-conf.xml"
-    date=$(date +"%m-%d-%Y-%Hh%M")
+  kohaconfig="/etc/koha/sites/$name/koha-conf.xml"
+  date=$(date +"%m-%d-%Y-%Hh%M")
 
-    [ "$quiet" = "no" ] && echo "Dumping Koha site $name:"
+  [ "$quiet" = "no" ] && echo "Dumping Koha site $name:"
 
-    # Dump database.
-    mysqlhost="$(sudo xmlstarlet sel -t -v 'yazgfs/config/hostname' "$kohaconfig" )"
-    mysqldb="$( sudo xmlstarlet sel -t -v 'yazgfs/config/database' "$kohaconfig" )"
-    mysqluser="$( sudo xmlstarlet sel -t -v 'yazgfs/config/user' "$kohaconfig" )"
-    mysqlpass="$(sudo  xmlstarlet sel -t -v 'yazgfs/config/pass' "$kohaconfig" )"
-    backupdir=/tmp
-    [ -z "$backupdir" ] && backupdir="/var/spool/koha/$name"
-    dbdump="$backupdir/$name-$date.sql.gz"
-    dbflag="--databases"
-    [ "$without_db_name" = "yes" ] && dbflag=""
-    if [ "$schema_only" = "yes" ]; then
-        schemadump="$backupdir/$name-schema-$date.sql"
-        [ "$quiet" = "no" ] && echo "* schema to $schemadump"
-           mysqldump $dbflag --no-tablespaces -d --host="$mysqlhost" --single-transaction --user="$mysqluser" --password="$mysqlpass" "$mysqldb" | sed --expression='s/ AUTO_INCREMENT=[0-9]\+//' > "$schemadump"
+  # Dump database.
+  mysqlhost="$(sudo xmlstarlet sel -t -v 'yazgfs/config/hostname' "$kohaconfig")"
+  mysqldb="$(sudo xmlstarlet sel -t -v 'yazgfs/config/database' "$kohaconfig")"
+  mysqluser="$(sudo xmlstarlet sel -t -v 'yazgfs/config/user' "$kohaconfig")"
+  mysqlpass="$(sudo xmlstarlet sel -t -v 'yazgfs/config/pass' "$kohaconfig")"
+  backupdir=/tmp
+  [ -z "$backupdir" ] && backupdir="/var/spool/koha/$name"
+  dbdump="$backupdir/$name-$date.sql.gz"
+  dbflag="--databases"
+  [ "$without_db_name" = "yes" ] && dbflag=""
+if [ "$schema_only" = "yes" ]; then
+schemadump="$backupdir/$name-schema-$date.sql"
+[ "$quiet" = "no" ] && echo "* schema to $schemadump"
+mysqldump $dbflag --no-tablespaces -d --host="$mysqlhost" --single-transaction --user="$mysqluser" --password="$mysqlpass" "$mysqldb" | sed --expression='s/ AUTO_INCREMENT=[0-9]+//' >"$schemadump"
 else
-    [ "$quiet" = "no" ] && echo "* DB to $dbdump"
-    mysqldump $dbflag --no-tablespaces --host="$mysqlhost" --single-transaction --user="$mysqluser" --password="$mysqlpass" "$mysqldb" | gzip > "$dbdump"
+[ "$quiet" = "no" ] && echo "* DB to $dbdump"
+mysqldump $dbflag --no-tablespaces --host="$mysqlhost" --single-transaction --user="$mysqluser" --password="$mysqlpass" "$mysqldb" | gzip >"$dbdump"
+instancefile="$name.conf"
 
-    instancefile="$name.conf"
+# Dump configs, logs, etc.
+metadump="$backupdir/$name-$date.tar.gz"
+[ "$quiet" = "no" ] && echo "* configs, logs to $metadump"
 
-    # Dump configs, logs, etc.
-    metadump="$backupdir/$name-$date.tar.gz"
-    [ "$quiet" = "no" ] && echo "* configs, logs to $metadump"
+if [ "$exclude_indexes" = "yes" ]; then
+  excludes="--exclude=var/lib/koha/$name/biblios \
+              --exclude=var/lib/koha/$name/authorities"
+fi
 
-    if [ "$exclude_indexes" = "yes" ]; then
-        excludes="--exclude=var/lib/koha/$name/biblios \
-                  --exclude=var/lib/koha/$name/authorities"
-    fi
+sudo tar -czf "$metadump" -C / $excludes \
+  "etc/koha/sites/$name" \
+  "etc/apache2/sites-available/$instancefile" \
+  "etc/apache2/sites-enabled/$instancefile" \
+  "var/lib/koha/$name" \
+  "var/log/koha/$name"
 
-    sudo tar -czf "$metadump" -C / $excludes \
-        "etc/koha/sites/$name" \
-        "etc/apache2/sites-available/$instancefile" \
-        "etc/apache2/sites-enabled/$instancefile" \
-        "var/lib/koha/$name" \
-        "var/log/koha/$name"
+# Make the dump files readable and writeable by the current user.
+sudo chown $(whoami):$(whoami) "$dbdump" "$metadump"
+if [ -n "$s3_url" ]; then
+  [ "$quiet" = "no" ] && echo "* copying backups to S3 bucket: $s3_url"
+  aws s3 cp "$dbdump" "$s3_url/$name/$name-$date.sql.gz"
+  aws s3 cp "$metadump" "$s3_url/$name/$name-$date.tar.gz"
+else
+  usage
+  exit 1
+fi
 
-    # Make the dump files readable and writeable by the current user.
-    sudo chown $(whoami):$(whoami) "$dbdump" "$metadump"
-    if [ -n "$s3_url" ] || ! [ "$s3_url" = "" ] ; then
-    [ "$quiet" = "no" ] && echo "* copying backups to S3 bucket: $s3_url"
-    aws s3 cp "$dbdump" "$s3_url/$name/$name-$date.sql.gz"
-    aws s3 cp "$metadump" "$s3_url/$name/$name-$date.tar.gz"
-    else
-    usage
-    fi
-    
-    [ "$quiet" = "no" ] && echo "Done."
+[ "$quiet" = "no" ] && echo "Done."
 fi
 }
 
@@ -130,34 +130,50 @@ while [ $# -gt 0 ]; do
 case "$1" in
 --schema-only)
 schema_only="yes"
-shift ;;
+shift
+;;
 --exclude-indexes)
 exclude_indexes="yes"
-shift ;;
+shift
+;;
 --without-db-name)
 without_db_name="yes"
-shift ;;
+shift
+;;
 -i)
 shift
 while [ $# -gt 0 ] && [[ "$1" != "" ]] && ! [[ "$1" =~ ^- ]]; do
 instances+=("$1")
 shift
-done ;;
+done
+;;
 -s)
 shift
 s3_url="$1"
-shift;;
--h|--help)
-usage ; exit 0 ;;
--q|--quiet)
+if [ -z "$s3_url" ]; then
+usage
+exit 1
+fi
+shift
+;;
+-h | --help)
+usage
+exit 0
+;;
+-q | --quiet)
 quiet="yes"
-shift ;;
+shift
+;;
 -*)
-echo "Error: invalid option switch ("$1")" >&2; usage; exit 1 ;;
+echo "Error: invalid option switch ("$1")" >&2
+usage
+exit 1
+;;
 *)
 # We expect the remaining stuff are the instance names
 instances+=("$1")
-shift ;;
+shift
+;;
 esac
 done
 
@@ -176,4 +192,3 @@ dump_instance "$name"
 done
 
 exit 0
-
