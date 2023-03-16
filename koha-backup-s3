@@ -60,8 +60,7 @@ dump_instance() {
     if [ "$schema_only" = "yes" ]; then
         schemadump="$backupdir/$name-schema-$date.sql"
         [ "$quiet" = "no" ] && echo "* schema to $schemadump"
-        mysqldump $dbflag --no-tablespaces -d --host="$mysqlhost" --single-transaction \
-            --user="$mysqluser" --password="$mysqlpass" "$mysqldb" | sed --expression='s/ AUTO_INCREMENT=[0-9]\+//' > "$schemadump"
+        mysqldump $dbflag --no-tablespaces -d --host="$mysqlhost" --single-transaction --user="$mysqluser" --password="$mysqlpass" "$mysqldb" | sed --expression='s/ AUTO_INCREMENT=[0-9]\+//' > "$schemadump"
     
     else
         [ "$quiet" = "no" ] && echo "* DB to $dbdump"
