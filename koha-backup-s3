@@ -150,14 +150,13 @@ while [ $# -gt 0 ] && [[ "$1" != "" ]] && ! [[ "$1" =~ ^- ]]; do
 instances+=("$1")
 shift
 done ;;
-
 -s)
 if [ -z "${2:-}" ]; then
     echo "Error: Please enter the S3 URL." >&2
     usage
     exit 1
 else
-    backupdir="$2"
+    s3_url="$2"
     shift
 fi ;;
 -h|--help)
