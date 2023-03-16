@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -euox pipefail
+
 usage() {
   cat <<EOF
 Usage: $(basename "$0") [koha_instance_name]
