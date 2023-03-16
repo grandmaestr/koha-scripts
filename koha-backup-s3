@@ -146,10 +146,16 @@ while [ $# -gt 0 ] && [[ "$1" != "" ]] && ! [[ "$1" =~ ^- ]]; do
 instances+=("$1")
 shift
 done ;;
+
 -s)
-shift
-s3_url="${1:-}"
-shift ;;
+if [ -z "${2:-}" ]; then
+    echo "Error: Backup directory path cannot be empty" >&2
+    usage
+    exit 1
+else
+    backupdir="$2"
+    shift
+fi ;;
 -h|--help)
 usage ; exit 0 ;;
 -q|--quiet)
