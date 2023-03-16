@@ -151,14 +151,14 @@ instances+=("$1")
 shift
 done ;;
 -s)
-if [ -z "${2:-}" ]; then
-    echo "Error: Please enter the S3 URL." >&2
-    usage
-    exit 1
-else
-    s3_url="$2"
-    shift
-fi ;;
+# if [ -z "${2:-}" ]; then
+    # echo "Error: Please enter the S3 URL." >&2
+    # usage
+    # exit 1
+# else
+    s3_url="$1"
+    shift;;
+# fi ;;
 -h|--help)
 usage ; exit 0 ;;
 -q|--quiet)
