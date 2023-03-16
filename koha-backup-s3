@@ -178,7 +178,7 @@ usage ; exit 0 ;;
 quiet="yes"
 shift ;;
 -*)
-echo "Error: invalid option switch ($1)" >&2; usage; exit 1 ;;
+echo "Error: invalid option switch ("$1")" >&2; usage; exit 1 ;;
 *)
 # We expect the remaining stuff are the instance names
 break ;;
