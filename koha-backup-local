@@ -128,13 +128,14 @@ shift ;;
 without_db_name="yes"
 shift ;;
 --backup-dir|-b)
-    backupdir="$2"
-    if [ -z "$backupdir" ]; then
-        echo "Error: Backup directory path cannot be empty" >&2
-        usage
-        exit 1
-    fi
-shift 2 ;;
+            if [ -z "${2:-}" ]; then
+                echo "Error: Backup directory path cannot be empty" >&2
+                usage
+                exit 1
+            else
+                backupdir="$2"
+                shift 2
+            fi ;;
 -i)
 shift
 while [ $# -gt 0 ] && [[ "$1" != "" ]] && ! [[ "$1" =~ ^- ]]; do
