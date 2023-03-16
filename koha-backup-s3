@@ -145,7 +145,7 @@ shift
 done ;;
 -s)
 shift
-while [[ "$1" != "" ]] && ! [[ "$1" =~ ^- ]]; do
+while [[ "$1" != "" ]]; do
 s3_url="$1"
 shift
 done ;;
