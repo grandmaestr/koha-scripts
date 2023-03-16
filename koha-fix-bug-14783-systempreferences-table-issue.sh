@@ -1,5 +1,12 @@
 #!/bin/bash
 
+set -euox pipefail
+
+if [ "$(id -u)" != "0" ]; then
+    echo "Error: This script must be run with sudo privileges."
+    exit 1
+fi
+
 # Script to apply a patch to fix MySQL error in Koha
 # Target file: /usr/share/koha/intranet/cgi-bin/installer/data/mysql/db_revs/220600064.pl
 
