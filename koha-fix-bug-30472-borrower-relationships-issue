@@ -1,0 +1,199 @@
+#!/bin/bash
+# ------------------------------------------------------------------
+# Author: Lennon Mazonde
+# GitHub: @grandmaestr
+# Title: koha-fix-bug-30472-borrower-relationships-issue
+# Description: 
+# You may encounter the following error while upgrading from Koha 22.06 (or earlier) to 22.11 (or later):
+##################
+#       Upgrading database schema for kohadev
+#       Upgrade to 22.06.00.048  [02:11:58]: Bug 30472 - borrower_relationships.guarantor_id NOT NULL
+#       ERROR - {UNKNOWN}: DBI Exception: DBD::mysql::db do failed: Cannot change column 'guarantor_id': used in a foreign key constraint 'r_guarantor' at /usr/share/koha/lib/C4/Installer.pm line 739
+
+#################
+# This script attempts to fix this error by dropping and recreating the foreign key constraint table. Please make sure you understand what you are doing and make a  backup of your database and have a recovery procedure in place before running this script.
+# See:
+# https://bugs.koha-community.org/bugzilla3/show_bug.cgi?id=31673
+# https://www.mail-archive.com/koha@lists.katipo.co.nz/msg29255.html
+# https://bugs.koha-community.org/bugzilla3/show_bug.cgi?id=31086
+# https://github.com/Koha-Community/Koha/blob/master/installer/data/mysql/kohastructure.sql
+
+
+# THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+# ------------------------------------------------------------------
+set -euo pipefail
+# Script configuration
+VERSION="0.1.1"
+SUBJECT="koha-borrower-relationships-error-fix"
+SCRIPT_NAME="$(basename "${0}")"
+LOCK_FILE="/tmp/${SUBJECT}.lock"
+REQUIRED_TOOLS=("sudo" "koha-run-backups" "koha-worker" "koha-plack" "koha-zebra" "koha-remove" "deluser" "systemctl" "koha-restore" "koha-mysql" "koha-upgrade-schema")
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+NC='\033[0m' # No Color
+
+# Functions
+function help_message() {
+  cat <<EOF
+Usage: ${SCRIPT_NAME} -i <instance_id> [-h] [-v]
+
+Options:
+  -i: The name of the koha instance. Can be specified multiple times.
+  -h: Print help message.
+  -v: Print version.
+
+Examples:
+  ${SCRIPT_NAME} -i library
+  ${SCRIPT_NAME} -i library1 -i library2
+EOF
+}
+
+function check_requirements() {
+  for tool in "${REQUIRED_TOOLS[@]}"; do
+    if ! command -v "${tool}" >/dev/null 2>&1; then
+      echo -e "${RED}Error: ${tool} is not installed or is not in the system path.${NC}" >&2
+      exit 1
+    fi
+  done
+}
+
+function backup_instance() {
+  local instance_id="$1"
+  echo -e "${GREEN}Running backup for ${instance_id}. Please be patient.${NC}"
+  
+  local log_file="/var/log/koha/$(basename "$0" .sh)_${instance_id}.log"
+  sudo touch "${log_file}"
+  sudo koha-run-backups "${instance_id}" 2>&1 | sudo tee -a "${log_file}" >/dev/null
+  local status=$?
+  
+  if [[ ${status} -eq 0 ]]; then
+    echo -e "${GREEN}Backup for ${instance_id} complete.${NC}"
+  else
+    echo -e "${RED}Error: backup for ${instance_id} failed. See ${log_file} for details.${NC}"
+  fi
+}
+
+function restore_instance() {
+  local instance_id="$1"
+  sudo koha-worker --stop "${instance_id}"
+  sudo koha-plack --stop "${instance_id}"
+  sudo koha-zebra --stop "${instance_id}"
+  sudo koha-remove "${instance_id}"
+  sudo deluser "${instance_id}-koha"
+  sudo rm -f "/etc/apache2/sites-enabled/${instance_id}.conf" "/etc/apache2/sites-enabled/${instance_id}-le-ssl.conf"
+  sudo rm -rf "/etc/koha/sites/${instance_id}"
+  sudo rm -rf "/var/lib/koha/${instance_id}"
+  sudo systemctl restart apache2.service "${instance_id}"
+
+  # Set path to backup files
+  sqldump=$(sudo ls "/var/spool/koha/${instance_id}"/*.sql.gz -t | head -n1)
+  configdump=$(sudo ls "/var/spool/koha/${instance_id}"/*.tar.gz -t | head -n1)
+  sudo koha-restore "${sqldump}" "${configdump}"
+  sudo koha-worker --start "${instance_id}"
+  sudo koha-plack --enable "${instance_id}"
+  sudo koha-plack --start "${instance_id}"
+  sudo koha-zebra --start "${instance_id}"
+}
+function drop_foreign_key() {
+  local instance_id="$1"
+  while true; do
+    read -rp "Drop and recreate the foreign key 'r_guarantor' for ${instance_id}? (y/n): " response
+    case "${response}" in
+      [yY][eE][sS]|[yY])
+        # Backup database
+        while true; do
+          read -rp "Backup all your Koha instances? This step is strongly recommended. (y/n): " response
+          case "${response}" in
+            [yY][eE][sS]|[yY])
+              backup_instance "${instance_id}"
+              break
+              ;;
+            [nN][oO]|[nN])
+              echo -e "${GREEN}Skipping backup${NC}"
+              break
+              ;;
+            [qQ][uU][iI][tT]|[qQ])
+              exit
+              ;;
+            *)
+              echo -e "${RED}Invalid response. Try again.${NC}"
+              ;;
+          esac
+        done
+
+        # Drop the foreign key
+        sudo koha-mysql "${instance_id}" -Nse "ALTER TABLE borrower_relationships DROP FOREIGN KEY r_guarantor; ALTER TABLE borrower_relationships MODIFY COLUMN guarantor_id INT(11) COLLATE utf8mb4_unicode_ci NOT NULL;"
+
+        # Upgrade the database schema
+        sudo koha-upgrade-schema "${instance_id}"
+
+        # Add the foreign key
+        sudo koha-mysql "${instance_id}" -Nse "ALTER TABLE borrower_relationships ADD CONSTRAINT r_guarantor FOREIGN KEY (guarantor_id) REFERENCES borrowers (borrowernumber) ON DELETE CASCADE ON UPDATE CASCADE;"
+        echo -e "${GREEN}The foreign key drop and recreate operation for ${instance_id} is complete. If the koha-upgrade-schema command above produces errors, you will need to resolve those errors before you can successfully complete the upgrade process.${NC}"
+        sleep 1s
+        break
+        ;;
+      [nN][oO]|[nN])
+        echo -e "${GREEN}No changes have been made.${NC}"
+        break
+        ;;
+      [qQ][uU][iI][tT]|[qQ])
+        exit
+        ;;
+      *)
+        echo -e "${RED}Invalid response. Try again.${NC}"
+        ;;
+    esac
+  done
+}
+
+# Check requirements
+check_requirements
+
+# Parse command-line options
+instance_ids=()
+while getopts "hi:v" option; do
+  case "${option}" in
+    i)
+      instance_ids+=("${OPTARG}")
+      ;;
+    v)
+      echo -e "${GREEN}Version ${VERSION}${NC}"
+      exit 0
+      ;;
+    h)
+      help_message
+      exit 0
+      ;;
+    *)
+      echo -e "${RED}Invalid option: -${OPTARG}${NC}" >&2
+      help_message >&2
+      exit 1
+      ;;
+  esac
+done
+shift $((OPTIND - 1))
+
+# Check that instance_ids is not empty
+if [[ ${#instance_ids[@]} -eq 0 ]]; then
+  echo -e "${RED}Error: you must specify at least one instance id.${NC}" >&2
+  help_message >&2
+  exit 1
+fi
+
+# Ensure that only one instance is being operated on at a time
+if [[ -f "${LOCK_FILE}" ]]; then
+  echo -e "${RED}Error: ${SCRIPT_NAME} is already running.${NC}" >&2
+  exit 1
+fi
+trap "rm -f ${LOCK_FILE}" EXIT
+touch "${LOCK_FILE}"
+
+# Perform operations on each instance id
+for instance_id in "${instance_ids[@]}"; do
+  drop_foreign_key "${instance_id}"
+done
+
+exit 0
