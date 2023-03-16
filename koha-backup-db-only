@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -euox pipefail
+set -euo pipefail
 
 # Script version
 VERSION="0.1.0"
@@ -124,6 +124,7 @@ exit 1
 # Dump Koha instances
 for instance_name in "${instance_ids[@]}"; do
 dump_db "$instance_name"
+echo "The database for $instance_name has been saved to ${DUMP_DIR}/koha_${instance_name}-$date.sql"
 done
 ) 200>"$LOCK_FILE"
 
