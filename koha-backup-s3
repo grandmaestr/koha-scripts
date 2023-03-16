@@ -149,7 +149,7 @@ done ;;
 
 -s)
 if [ -z "${2:-}" ]; then
-    echo "Error: Backup directory path cannot be empty" >&2
+    echo "Error: Please enter the S3 URL." >&2
     usage
     exit 1
 else
