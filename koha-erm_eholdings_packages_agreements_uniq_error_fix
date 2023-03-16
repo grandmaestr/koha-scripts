@@ -5,7 +5,7 @@
 # Title: koha-erm_eholdings_packages_agreements_uniq_error_fix
 # Description: 
 # ------------------------------------------------------------------
-set -euo pipefail
+set -euox pipefail
 
 # Script version
 VERSION=0.1.0
