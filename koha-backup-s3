@@ -109,14 +109,14 @@ else
 
     # Make the dump files readable and writeable by the current user.
     sudo chown $(whoami):$(whoami) "$dbdump" "$metadump"
-    if [ -n "$s3_url" ]; then
+    if [ -n "$s3_url" ] || [ -z "$s3_url" ]; then
     [ "$quiet" = "no" ] && echo "* copying backups to S3 bucket: $s3_url"
     aws s3 cp "$dbdump" "$s3_url/$name/$name-$date.sql.gz"
     aws s3 cp "$metadump" "$s3_url/$name/$name-$date.tar.gz"
     else
     usage
     fi
-    
+
     [ "$quiet" = "no" ] && echo "Done."
 fi
 }
