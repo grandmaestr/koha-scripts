@@ -1,0 +1,130 @@
+#!/bin/bash
+
+set -euo pipefail
+
+# Script version
+VERSION="0.1.0"
+# Set the name of the script to variable
+SCRIPT_NAME="$(basename "${0}")"
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+NC='\033[0m' # No Color
+
+# Functions
+# Help function
+function help_message() {
+  cat <<EOF
+Usage: ${SCRIPT_NAME} -i <instance_id> [-d <dump_directory>] [-h] [-v]
+
+Options:
+  -i: The name of the koha instance. Can be specified multiple times.
+  -d: The path of the dump directory. If not specified, a temporary directory will be used.
+  -h: Print help message.
+  -v: Print version.
+
+Examples:
+  ${SCRIPT_NAME} -i library
+  ${SCRIPT_NAME} -i library1 -i library2 -d /path/to/dump/directory
+EOF
+}
+
+# Check if required packages are installed
+check_requirements() {
+  local packages=(xmlstarlet mysqldump)
+
+  for package in "${packages[@]}"; do
+    if ! command -v "$package" &> /dev/null; then
+      echo -e "${RED}Error: $package is not installed.${NC}" >&2
+      exit 1
+    fi
+  done
+}
+
+# Parse command-line options
+instance_ids=()
+while [[ $# -gt 0 ]]; do
+  case $1 in
+    -i)
+      if [[ -z ${2:-} ]]; then
+        echo -e "${RED}Error: instance id is missing.${NC}" >&2
+        help_message >&2
+        exit 1
+      fi
+      instance_ids+=("$2")
+      shift
+      ;;
+    -d)
+      if [[ -z ${2:-} ]]; then
+        echo -e "${RED}Error: dump directory path is missing.${NC}" >&2
+        help_message >&2
+        exit 1
+      fi
+      DUMP_DIR="$2"
+      shift
+      ;;
+    -v|--version)
+      echo "${SCRIPT_NAME} version ${VERSION}"
+      exit 0
+      ;;
+    -h|--help)
+      help_message
+      exit 0
+      ;;
+    *)
+      echo "Error: Unknown option: $1" >&2
+      help_message >&2
+      exit 1
+      ;;
+  esac
+  shift
+done
+
+# Check if instance_ids are set
+if [[ ${#instance_ids[@]} -eq 0 ]]; then
+  echo -e "${RED}Error: you must specify at least one instance id.${NC}" >&2
+  help_message >&2
+  exit 1
+fi
+
+# Check if required packages are installed
+check_requirements
+
+# Set up temporary directory for SQL dump if not specified
+if [[ -z ${DUMP_DIR+x} ]]; then
+  DUMP_DIR=$(mktemp -d)
+fi
+
+# Function to dump database
+dump_db() {
+  local instance_name=$1
+
+  # Set the path to koha_conf.xml
+  koha_conf="/etc/koha/sites/${instance_name}/koha-conf.xml"
+
+  # Retrieve the Koha user, password, and database hostname
+  kohadbpwd=$(sudo xmlstarlet sel -t -v 'yazgfs/config/pass' "$koha_conf")
+  kohadbuser="koha_${instance_name}"
+  kohadbhost=$(sudo xmlstarlet sel -t -v 'yazgfs/config/hostname' "$koha_conf")
+  date=$(date +"%m-%d-%Y-%Hh%M")
+
+# Dump Koha database
+mysqldump -h "$kohadbhost" -u "$kohadbuser" -p"$kohadbpwd" --single-transaction --databases --no-tablespaces "koha_${instance_name}" > "${DUMP_DIR}/koha_${instance_name}-$date.sql"
+}
+
+# Lock file to prevent concurrent execution
+LOCK_FILE="/tmp/${SCRIPT_NAME}.lock"
+(
+flock -n 200 || {
+echo "Script is already running"
+exit 1
+}
+
+# Dump Koha instances
+for instance_name in "${instance_ids[@]}"; do
+dump_db "$instance_name"
+echo "The database for $instance_name has been saved to ${DUMP_DIR}/koha_${instance_name}-$date.sql"
+done
+) 200>"$LOCK_FILE"
+

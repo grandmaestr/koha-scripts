@@ -11,7 +11,7 @@ else
 fi
 
 # Make sure the files we create are not accessible by anyone else.
-umask 0077
+# umask 0077
 
 # Default values
 quiet="no"
