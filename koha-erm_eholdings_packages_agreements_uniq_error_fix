@@ -68,8 +68,8 @@ done
 
 shift $(($OPTIND - 1))
 
-param1=$1
-param2=$2
+# param1=$1
+# param2=$2
 
 # Backup function
 backup(){
