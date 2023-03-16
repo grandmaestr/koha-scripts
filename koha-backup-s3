@@ -150,7 +150,7 @@ done
 -s)
 shift
 s3_url="$1"
-if [ -z "$s3_url" ]; then
+if [ -z "$s3_url" ] && [[ "$1" != "" ]]; then
 usage
 exit 1
 fi
