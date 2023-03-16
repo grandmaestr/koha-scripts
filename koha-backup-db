@@ -47,7 +47,7 @@ instance_ids=()
 while [[ $# -gt 0 ]]; do
   case $1 in
     -i)
-      if [[ -z $2 ]]; then
+      if [[ -z ${2:-} ]]; then
         echo -e "${RED}Error: instance id is missing.${NC}" >&2
         help_message >&2
         exit 1
@@ -56,7 +56,7 @@ while [[ $# -gt 0 ]]; do
       shift
       ;;
     -d)
-      if [[ -z $2 ]]; then
+      if [[ -z ${2:-} ]]; then
         echo -e "${RED}Error: dump directory path is missing.${NC}" >&2
         help_message >&2
         exit 1
@@ -106,13 +106,12 @@ dump_db() {
   # Retrieve the Koha user, password, and database hostname
   kohadbpwd=$(sudo xmlstarlet sel -t -v 'yazgfs/config/pass' "$koha_conf")
   kohadbuser="koha_${instance_name}"
-  kohadbhost=$(sudo xmlstarlet sel -t -v 'yazgfs/config/
-  hostname' "$koha_conf")
+  kohadbhost=$(sudo xmlstarlet sel -t -v 'yazgfs/config/hostname' "$koha_conf")
   date=$(date +"%m-%d-%Y-%Hh%M")
 
 # Dump Koha database
-  mysqldump -h "$kohadbhost" -u "$kohadbuser" -p"$kohadbpwd" --single-transaction --databases --no-tablespaces "koha_${instance_name}" > "${DUMP_DIR}/koha_${instance_name}-$date.sql"
-  }
+mysqldump -h "$kohadbhost" -u "$kohadbuser" -p"$kohadbpwd" --single-transaction --databases --no-tablespaces "koha_${instance_name}" > "${DUMP_DIR}/koha_${instance_name}-$date.sql"
+}
 
 # Lock file to prevent concurrent execution
 LOCK_FILE="/tmp/${SCRIPT_NAME}.lock"
@@ -125,7 +124,6 @@ exit 1
 # Dump Koha instances
 for instance_name in "${instance_ids[@]}"; do
 dump_db "$instance_name"
-echo "The ${instance_name} database has been saved to ${DUMP_DIR}/koha_${instance_name}-$date.sql"
 done
 ) 200>"$LOCK_FILE"
 
