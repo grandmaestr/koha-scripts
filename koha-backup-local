@@ -19,7 +19,7 @@ exclude_indexes="no"
 without_db_name="no"
 schema_only="no"
 instances=()
-# s3_url=""
+backupdir="/tmp"  # Set default backup directory here
 excludes=""
 
 usage() {
@@ -34,26 +34,29 @@ The schema only option can be used to compare your existing database schema
 to the expected Koha structure.
 
 Usage:
-$scriptname [--quiet|-q] [--exclude-indexes] [--without-db-name] [-i instance1 [instance2...]] [-s s3://bucket-name]
+$scriptname [--quiet|-q] [--exclude-indexes] [--without-db-name] [--backup-dir|-b backup_path] [-i instance1 [instance2...]]
 $scriptname -h|--help
 
 Options:
     --schema-only         Dump only the database schema
                           Example: $scriptname --schema-only -i instance1
-                          
+
     --exclude-indexes     Exclude Zebra indexes from the backup
                           Example: $scriptname --exclude-indexes -i instance1
-                          
+
     --without-db-name     Do not include the database name in the dump
                           Example: $scriptname --without-db-name -i instance1
-                          
+
+    --backup-dir|-b       Specify the path to save the backup files
+                          Example: $scriptname --backup-dir /path/to/backup -i instance1
+
     -i                    One or more Koha instance names to dump (separated by spaces)
                           Example: $scriptname -i instance1 instance2
-                          
+
     --quiet|-q            Make the script avoid printing to STDOUT
                           (useful for calling from another script)
                           Example: $scriptname -q -i instance1
-                          
+
     --help|-h             Display this help message
                           Example: $scriptname -h
 EOF
@@ -72,19 +75,17 @@ dump_instance() {
     mysqldb="$( sudo xmlstarlet sel -t -v 'yazgfs/config/database' "$kohaconfig" )"
     mysqluser="$( sudo xmlstarlet sel -t -v 'yazgfs/config/user' "$kohaconfig" )"
     mysqlpass="$(sudo  xmlstarlet sel -t -v 'yazgfs/config/pass' "$kohaconfig" )"
-    backupdir=/tmp
-    [ -z "$backupdir" ] && backupdir="/var/spool/koha/$name"
+
     dbdump="$backupdir/$name-$date.sql.gz"
     dbflag="--databases"
     [ "$without_db_name" = "yes" ] && dbflag=""
     if [ "$schema_only" = "yes" ]; then
         schemadump="$backupdir/$name-schema-$date.sql"
         [ "$quiet" = "no" ] && echo "* schema to $schemadump"
-           mysqldump $dbflag --no-tablespaces -d --host="$mysqlhost" --single-transaction --user="$mysqluser" --password="$mysqlpass" "$mysqldb" | sed --expression='s/ AUTO_INCREMENT=[0-9]\+//' > "$schemadump"
-else
-    [ "$quiet" = "no" ] && echo "* DB to $dbdump"
-    mysqldump $dbflag --no-tablespaces --host="$mysqlhost" --single-transaction --user="$mysqluser" --password="$mysqlpass" "$mysqldb" | gzip > "$dbdump"
-
+        mysqldump $dbflag --no-tablespaces -d --host="$mysqlhost" --single-transaction --user="$mysqluser" --password="$mysqlpass" "$mysqldb" | sed --expression='s/ AUTO_INCREMENT=[0-9]+//' > "$schemadump"
+    else
+        [ "$quiet" = "no" ] && echo "* DB to $dbdump"
+        mysqldump $dbflag --no-tablespaces --host="$mysqlhost" --single-transaction --user="$mysqluser" --password="$mysqlpass" "$mysqldb" | gzip > "$dbdump"
     instancefile="$name.conf"
 
     # Dump configs, logs, etc.
@@ -126,6 +127,9 @@ shift ;;
 --without-db-name)
 without_db_name="yes"
 shift ;;
+--backup-dir|-b)
+backupdir="$2"
+shift 2 ;;
 -i)
 shift
 while [ $# -gt 0 ] && [[ "$1" != "" ]] && ! [[ "$1" =~ ^- ]]; do
@@ -161,4 +165,3 @@ dump_instance "$name"
 done
 
 exit 0
-
