@@ -167,6 +167,7 @@ echo "Error: Invalid instance name $name" >&2
 exit 1
 fi
 dump_instance "$name"
+echo "The database and config files for $name have been saved to  $dbdump and $metadump respectively."
 done
 
 exit 0
