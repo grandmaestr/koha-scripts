@@ -5,7 +5,7 @@ if [ "$(id -u)" != "0" ]; then
     exit 1
 fi
 
-set -euo pipefail
+set -euox pipefail
 
 # Include helper functions
 if [ -f "/usr/share/koha/bin/koha-functions.sh" ]; then
