@@ -113,6 +113,11 @@ else
         [ "$quiet" = "no" ] && echo "* copying backups to S3 bucket: $s3_url"
         aws s3 cp "$dbdump" "$s3_url/$name/$name-$date.sql.gz"
         aws s3 cp "$metadump" "$s3_url/$name/$name-$date.tar.gz"
+
+     else
+        echo "Error: S3 URL is empty. Please provide a valid S3 URL." >&2
+        usage
+        exit 1
     fi
 
     [ "$quiet" = "no" ] && echo "Done."
