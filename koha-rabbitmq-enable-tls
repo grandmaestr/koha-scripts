@@ -85,7 +85,7 @@ if [ -d "$tls_repo_path" ]; then
   rm -rf "$tls_repo_path"
 fi
 git clone https://github.com/rabbitmq/tls-gen $tls_repo_path
-cd $tls_repo_path
+cd $tls_repo_path/basic
 
 # Generate private key password
 make PASSWORD="$CERT_PASSWORD" >/dev/null 2>&1
