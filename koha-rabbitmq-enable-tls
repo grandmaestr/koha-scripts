@@ -89,20 +89,16 @@ cd $tls_repo_path/basic
 
 # Generate private key password
 make PASSWORD="$CERT_PASSWORD" >/dev/null 2>&1
-make verify >/dev/null 2>&1
-make info >/dev/null 2>&1
+make verify >/dev/null #2>&1
+make info >/dev/null #2>&1
 ls -l ./result
 
 # Rename and move generated cert files
 cd ./result
-sudo mv server*key.pem server_key.pem
-sudo mv server*certificate.pem server_certificate.pem
-
-# Move cert files
 sudo mkdir -p "$CERT_DIR"
-sudo mv server_key.pem "$CERT_DIR"
-sudo mv server_certificate.pem "$CERT_DIR"
-sudo mv ca_certificate.pem "$CERT_DIR"
+sudo mv server*key.pem $CERT_DIR/server_key.pem
+sudo mv server*certificate.pem $CERT_DIR/server_certificate.pem
+sudo mv ca_certificate.pem $CERT_DIR
 
 # Set correct permissions
 sudo chmod 664 "$CERT_DIR/server_key.pem"
