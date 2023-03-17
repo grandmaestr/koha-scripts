@@ -1,40 +1,61 @@
 #!/bin/bash
-show_help() {
-  echo "Usage: $0 -i KOHA_INSTANCE -d CERT_DIR"
+
+usage() {
+  echo "Usage: $0 -k KOHA_INSTANCE [-s CN_SERVER] [-c CN_CLIENT] [-d DAYS]"
   echo
   echo "Options:"
-  echo "  -i KOHA_INSTANCE   Name of the Koha instance (required)"
-  echo "  -d CERT_DIR        Path to the directory containing the certificates (default: /etc/rabbitmq/tls)"
-  echo
-  echo "This script enables TLS on RabbitMQ and updates Koha configuration to use it."
+  echo "  -k KOHA_INSTANCE   Name of the Koha instance (required)"
+  echo "  -s CN_SERVER       Common Name for the server certificate (default: myrabbitmq-server)"
+  echo "  -c CN_CLIENT       Common Name for the client certificate (default: myrabbitmq-client)"
+  echo "  -d DAYS            Number of days the certificates are valid (default: 3650)"
+  exit 1
 }
 
-# Parse command line options
-while getopts ":i:d:h" opt; do
+# Default values
+CN_SERVER="myrabbitmq-server"
+CN_CLIENT="myrabbitmq-client"
+DAYS=3650
+KOHA_INSTANCE=""
+
+# Parse options
+while getopts ":s:c:d:k:" opt; do
   case $opt in
-    i) KOHA_INSTANCE="$OPTARG" ;;
-    d) CERT_DIR="$OPTARG" ;;
-    h) show_help; exit 0 ;;
-    \?) echo "Invalid option: -$OPTARG" >&2; show_help; exit 1 ;;
-    :) echo "Option -$OPTARG requires an argument." >&2; show_help; exit 1 ;;
+    s)
+      CN_SERVER="$OPTARG"
+      ;;
+    c)
+      CN_CLIENT="$OPTARG"
+      ;;
+    d)
+      DAYS="$OPTARG"
+      ;;
+    k)
+      KOHA_INSTANCE="$OPTARG"
+      ;;
+    \?)
+      echo "Invalid option: -$OPTARG" >&2
+      usage
+      ;;
+    :)
+      echo "Option -$OPTARG requires an argument." >&2
+      usage
+      ;;
   esac
 done
 
 if [ -z "$KOHA_INSTANCE" ]; then
-  echo "Error: Koha instance name is required." >&2
-  show_help
-  exit 1
+  echo "Error: Koha instance name is required"
+  usage
 fi
 
-CERT_DIR=${CERT_DIR:-/etc/rabbitmq/tls}
-KOHA_CONF="/etc/koha/sites/$KOHA_INSTANCE/koha-conf.xml"
-
+koha_conf="/etc/koha/sites/$KOHA_INSTANCE/koha-conf.xml"
 
 # Update and install packages
 sudo apt update
-sudo apt install -y rabbitmq-server openssl
+sudo apt install -y rabbitmq-server openssl xmlstarlet
 
 # Generate self-signed certificates
+CERT_DIR=/etc/rabbitmq/tls
 sudo mkdir -p $CERT_DIR
 cd $CERT_DIR
 sudo openssl genrsa -out ca_key.pem 2048
@@ -53,7 +74,6 @@ sudo chown -R rabbitmq:rabbitmq $CERT_DIR
 sudo chmod 640 $CERT_DIR/*.pem
 sudo chmod 600 $CERT_DIR/client_key.pem
 
-
 # Configure RabbitMQ to use TLS and require client certificates
 sudo bash -c "cat > /etc/rabbitmq/rabbitmq.conf << EOL
 listeners.ssl.default = 5671
@@ -64,22 +84,16 @@ ssl_options.verify = verify_peer
 ssl_options.fail_if_no_peer_cert = true
 EOL"
 
-
-# Update Koha configuration
-sudo xmlstarlet edit -L --update 'yazgfs/config/message_broker/username' --value "guest" "$KOHA_CONF"
-sudo xmlstarlet edit -L --update 'yazgfs/config/message_broker/password' --value "guest" "$KOHA_CONF"
-sudo xmlstarlet edit -L --update 'yazgfs/config/message_broker/port' --value "5671" "$KOHA_CONF"
-sudo xmlstarlet edit -L --update 'yazgfs/config/message_broker/tls/ca_cert' --value "$CERT_DIR/ca_cert.pem" "$KOHA_CONF"
-sudo xmlstarlet edit -L --update 'yazgfs/config/message_broker/tls/client_cert' --value "$CERT_DIR/client_cert.pem" "$KOHA_CONF"
-sudo xmlstarlet edit -L --update 'yazgfs/config/message_broker/tls/client_key' --value "$CERT_DIR/client_key.pem" "$KOHA_CONF"
-
-echo "Koha configuration updated successfully."
-
 # Restart RabbitMQ
 sudo systemctl restart rabbitmq-server
 
-# Verify TLS configuration and client authentication
+# Update koha configuration
+sudo xmlstarlet edit -L --update 'yazgfs/config/message_broker/hostname' --value "localhost" $koha_conf
+sudo xmlstarlet edit -L --update 'yazgfs/config/message_broker/port' --value "5671" $koha_conf
+sudo xmlstarlet edit -L --update 'yazgfs/config/message_broker/username' --value "guest" $koha_conf
+sudo xmlstarlet edit -L --update 'yazgfs/config/message_broker/password' --value "guest" $koha_conf
 
+Verify TLS configuration and client authentication
 echo "Testing TLS configuration and client authentication:"
 sudo openssl s_client -connect localhost:5671 -CAfile $CERT_DIR/ca_cert.pem -cert $CERT_DIR/client_cert.pem -key $CERT_DIR/client_key.pem
 
