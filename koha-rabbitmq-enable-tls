@@ -1,167 +1,104 @@
 #!/bin/bash
-set -euox pipefail
 
-# Usage message
 usage() {
-    echo "Usage: enable-tls-for-rabbitmq.sh [-h] [--cert-dir <directory>] [--cert-password <password>] [--instance <instance>...]"
-    echo ""
-    echo "Enable TLS for RabbitMQ by generating certificates and updating the configuration file."
-    echo ""
-    echo "Options:"
-    echo "  -h, --help                     Display this help message."
-    echo "      --cert-dir <directory>     Directory to store the generated certificates (default: /etc/rabbitmq/ssl)"
-    echo "      --cert-password <password> Password for the private key (default: bunnies)"
-    echo "      --instance <instance>...   Name of the Koha instance(s) for which to configure RabbitMQ."
-    echo ""
+  echo "Usage: $0 -k KOHA_INSTANCE [-s CN_SERVER] [-c CN_CLIENT] [-d DAYS]"
+  echo
+  echo "Options:"
+  echo "  -k KOHA_INSTANCE   Name of the Koha instance (required)"
+  echo "  -s CN_SERVER       Common Name for the server certificate (default: myrabbitmq-server)"
+  echo "  -c CN_CLIENT       Common Name for the client certificate (default: myrabbitmq-client)"
+  echo "  -d DAYS            Number of days the certificates are valid (default: 3650)"
+  exit 1
 }
 
 # Default values
-CERT_DIR="/etc/rabbitmq/ssl"
-CERT_PASSWORD="bunnies"
-INSTANCE=()
+CN_SERVER="myrabbitmq-server"
+CN_CLIENT="myrabbitmq-client"
+DAYS=3650
+KOHA_INSTANCE=""
 
-# Parse options and arguments
-while [[ $# -gt 0 ]]; do
-    key="$1"
-
-    case $key in
-        -h|--help)
-            usage
-            exit 0
-            ;;
-        -d|--cert-dir)
-            CERT_DIR="$2"
-            shift
-            shift
-            ;;
-        -p|--cert-password)
-            CERT_PASSWORD="$2"
-            shift
-            shift
-            ;;
-        -i|--instance)
-            INSTANCE+=("$2")
-            shift
-            shift
-            ;;
-        *)
-            echo "Unknown option: $1"
-            echo ""
-            usage
-            exit 1
-            ;;
-    esac
+# Parse options
+while getopts ":s:c:d:k:" opt; do
+  case $opt in
+    s)
+      CN_SERVER="$OPTARG"
+      ;;
+    c)
+      CN_CLIENT="$OPTARG"
+      ;;
+    d)
+      DAYS="$OPTARG"
+      ;;
+    k)
+      KOHA_INSTANCE="$OPTARG"
+      ;;
+    \?)
+      echo "Invalid option: -$OPTARG" >&2
+      usage
+      ;;
+    :)
+      echo "Option -$OPTARG requires an argument." >&2
+      usage
+      ;;
+  esac
 done
 
-# Check if instance option is provided
-if [ ${#INSTANCE[@]} -eq 0 ]; then
-    echo "Error: --instance option is required."
-    echo ""
-    usage
-    exit 1
+if [ -z "$KOHA_INSTANCE" ]; then
+  echo "Error: Koha instance name is required"
+  usage
 fi
 
-while true; do
-  read -p "Backup all your Koha instances? This step is strongly recommended. (y/n/q): " response
-    case $response in
-      [yY][eE][sS]|[yY] )
-        printf "Running backup. Please be patient.\n"
-        sudo koha-run-backups >/dev/null 2>&1
-        printf "Backup complete\n"
-        break;;
-    [nN][oO]|[nN] )
-      printf "Skipping backup.\n"
-      break;;
-    [qQ][uU][iI][tT] | [qQ] )
-      exit;;
-      * )
-      echo "Invalid response. Try again.";;
-    esac
-done
+koha_conf="/etc/koha/sites/$KOHA_INSTANCE/koha-conf.xml"
 
-# Clone the tls gen repo 
-tls_repo_path=/tmp/tls-gen
-if [ -d "$tls_repo_path" ]; then
-  rm -rf "$tls_repo_path"
-fi
-git clone https://github.com/rabbitmq/tls-gen $tls_repo_path
-cd $tls_repo_path/basic
+# Update and install packages
+sudo apt update
+sudo apt install -y rabbitmq-server openssl xmlstarlet
 
-# Generate private key password
-make PASSWORD="$CERT_PASSWORD" >/dev/null 2>&1
-make verify >/dev/null #2>&1
-make info >/dev/null #2>&1
-ls -l ./result
+# Generate self-signed certificates
+CERT_DIR=/etc/rabbitmq/tls
+sudo mkdir -p $CERT_DIR
+cd $CERT_DIR
+sudo openssl genrsa -out ca_key.pem 2048
+sudo openssl req -x509 -new -nodes -key ca_key.pem -days $DAYS -out ca_cert.pem -subj "/CN=$CN_SERVER"
+sudo openssl genrsa -out server_key.pem 2048
+sudo openssl req -new -key server_key.pem -out server.csr -subj "/CN=$CN_SERVER"
+sudo openssl x509 -req -in server.csr -CA ca_cert.pem -CAkey ca_key.pem -CAcreateserial -out server_cert.pem -days $DAYS
 
-# Rename and move generated cert files
-cd ./result
-sudo mkdir -p "$CERT_DIR"
-sudo chmod 0750 $CERT_DIR 
-sudo mv server*key.pem $CERT_DIR/server_key.pem
-sudo mv server*certificate.pem $CERT_DIR/server_certificate.pem
-sudo mv ca_certificate.pem $CERT_DIR
+# Generate client certificate
+sudo openssl genrsa -out client_key.pem 2048
+sudo openssl req -new -key client_key.pem -out client.csr -subj "/CN=$CN_CLIENT"
+sudo openssl x509 -req -in client.csr -CA ca_cert.pem -CAkey ca_key.pem -CAcreateserial -out client_cert.pem -days $DAYS
 
-# Set correct permissions and owndership
-sudo chmod 640 "$CERT_DIR/server_key.pem"
-sudo chmod 640 "$CERT_DIR/server_certificate.pem"
-sudo chmod 640 "$CERT_DIR/ca_certificate.pem"
+# Set ownership and permissions
 sudo chown -R rabbitmq:rabbitmq $CERT_DIR
+sudo chmod 640 $CERT_DIR/*.pem
+sudo chmod 600 $CERT_DIR/client_key.pem
 
-# Generate a random password
-rabbit_pass=$(openssl rand -base64 16)
-
-# Update RabbitMQ configuration file
-sudo tee /etc/rabbitmq/rabbitmq.conf <<EOF
-ssl_options.cacertfile = $CERT_DIR/ca_certificate.pem
-ssl_options.certfile   = $CERT_DIR/server_certificate.pem
-ssl_options.keyfile    = $CERT_DIR/server_key.pem
-ssl_options.verify     = verify_peer
+# Configure RabbitMQ to use TLS and require client certificates
+sudo bash -c "cat > /etc/rabbitmq/rabbitmq.conf << EOL
+listeners.ssl.default = 5671
+ssl_options.cacertfile = $CERT_DIR/ca_cert.pem
+ssl_options.certfile = $CERT_DIR/server_cert.pem
+ssl_options.keyfile = $CERT_DIR/server_key.pem
+ssl_options.verify = verify_peer
 ssl_options.fail_if_no_peer_cert = true
+EOL"
 
-# Listen on localhost only
-stomp.listeners.tcp.1 = 127.0.0.1:61613
-stomp.listeners.tcp.2 = ::1:61613
+# Restart RabbitMQ
+sudo systemctl restart rabbitmq-server
 
-# default TLS-enabled port for STOMP connections
-stomp.listeners.ssl.1 = 61614
+# Update koha configuration
+sudo xmlstarlet edit -L --update 'yazgfs/config/message_broker/hostname' --value "localhost" $koha_conf
+sudo xmlstarlet edit -L --update 'yazgfs/config/message_broker/port' --value "5671" $koha_conf
+sudo xmlstarlet edit -L --update 'yazgfs/config/message_broker/username' --value "guest" $koha_conf
+sudo xmlstarlet edit -L --update 'yazgfs/config/message_broker/password' --value "guest" $koha_conf
 
-# Change the default user and password
-stomp.default_user = guest
-stomp.default_pass = guest
-EOF
+Verify TLS configuration and client authentication
+echo "Testing TLS configuration and client authentication:"
+sudo openssl s_client -connect localhost:5671 -CAfile $CERT_DIR/ca_cert.pem -cert $CERT_DIR/client_cert.pem -key $CERT_DIR/client_key.pem
 
-# Enable STOMPl
-sudo rabbitmq-plugins enable rabbitmq_stomp
+echo "Testing TLS configuration and client authentication:"
+sudo openssl s_client -connect localhost:5671 -CAfile $CERT_DIR/ca_cert.pem -cert $CERT_DIR/client_cert.pem -key $CERT_DIR/client_key.pem
 
-# # Update the RabbitMQ password and username in koha-conf.xml
-# for instancename in "${INSTANCE[@]}"; do
-# # Set the path to koha_conf.xml
-# koha_conf="/etc/koha/sites/$instancename/koha-conf.xml"
-
-# sudo xmlstarlet edit -L --update 'yazgfs/config/message_broker/username' --value "koha_rabbitmq" $koha_conf
-# sudo xmlstarlet edit -L --update 'yazgfs/config/message_broker/password' --value "$rabbit_pass" $koha_conf
-# sudo xmlstarlet edit -L --update 'yazgfs/config/message_broker/port' --value "61614" $koha_conf
-# done
-
-# Restart RabbitMQ service
-
-sudo systemctl restart rabbitmq-server.service
-
-if sudo openssl s_client -connect localhost:61613 -tls1_2 | grep -q "Verification: OK"; then
-echo "TLS is enabled for RabbitMQ on port 61613."
-else
-echo "TLS failed for RabbitMQ on port 61613."
-fi
-
-if sudo openssl s_client -connect localhost:61614 -tls1_2 | grep -q "Verification: OK"; then
-echo "TLS is enabled for RabbitMQ on port 61614."
-else
-echo "TLS failed for RabbitMQ on port 61614."
-fi
-
-# Clean up
-
-tls_repo_path=/tmp/tls-gen
-if [ -d "$tls_repo_path" ]; then
-  rm -rf "$tls_repo_path"
-fi
+echo "Testing TLS configuration and client authentication:"
+sudo openssl s_client -connect localhost:5671 -CAfile $CERT_DIR/ca_cert.pem -cert $CERT_DIR/client_cert.pem -key $CERT_DIR/client_key.pem
