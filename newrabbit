@@ -1,14 +1,18 @@
 #!/bin/bash
 
 # Default values
-CN="myrabbitmq"
+CN_SERVER="myrabbitmq-server"
+CN_CLIENT="myrabbitmq-client"
 DAYS=3650
 
 # Parse options
-while getopts ":c:d:" opt; do
+while getopts ":s:c:d:" opt; do
   case $opt in
+    s)
+      CN_SERVER="$OPTARG"
+      ;;
     c)
-      CN="$OPTARG"
+      CN_CLIENT="$OPTARG"
       ;;
     d)
       DAYS="$OPTARG"
@@ -28,18 +32,26 @@ done
 sudo apt update
 sudo apt install -y rabbitmq-server openssl
 
-# Generate self-signed certificate
+# Generate self-signed certificates
 CERT_DIR=/etc/rabbitmq/tls
 sudo mkdir -p $CERT_DIR
 cd $CERT_DIR
-openssl genrsa -out ca_key.pem 2048
-openssl req -x509 -new -nodes -key ca_key.pem -days $DAYS -out ca_cert.pem -subj "/CN=$CN"
-openssl genrsa -out server_key.pem 2048
-openssl req -new -key server_key.pem -out server.csr -subj "/CN=$CN"
-openssl x509 -req -in server.csr -CA ca_cert.pem -CAkey ca_key.pem -CAcreateserial -out server_cert.pem -days $DAYS
-sudo chown -R rabbitmq:rabbitmq $CERT_DIR
+sudo openssl genrsa -out ca_key.pem 2048
+sudo openssl req -x509 -new -nodes -key ca_key.pem -days $DAYS -out ca_cert.pem -subj "/CN=$CN_SERVER"
+sudo openssl genrsa -out server_key.pem 2048
+sudo openssl req -new -key server_key.pem -out server.csr -subj "/CN=$CN_SERVER"
+sudo openssl x509 -req -in server.csr -CA ca_cert.pem -CAkey ca_key.pem -CAcreateserial -out server_cert.pem -days $DAYS
 
-# Configure RabbitMQ to use TLS
+# Generate client certificate
+sudo openssl genrsa -out client_key.pem 2048
+sudo openssl req -new -key client_key.pem -out client.csr -subj "/CN=$CN_CLIENT"
+sudo openssl x509 -req -in client.csr -CA ca_cert.pem -CAkey ca_key.pem -CAcreateserial -out client_cert.pem -days $DAYS
+
+# Set ownership and permissions
+sudo chown -R rabbitmq:rabbitmq $CERT_DIR
+sudo chmod 640 $CERT_DIR/*.pem
+
+# Configure RabbitMQ to use TLS and require client certificates
 sudo bash -c "cat > /etc/rabbitmq/rabbitmq.conf << EOL
 listeners.ssl.default = 5671
 ssl_options.cacertfile = $CERT_DIR/ca_cert.pem
@@ -52,6 +64,6 @@ EOL"
 # Restart RabbitMQ
 sudo systemctl restart rabbitmq-server
 
-# Verify TLS configuration
-echo "Testing TLS configuration:"
-openssl s_client -connect localhost:5671 -CAfile $CERT_DIR/ca_cert.pem
+# Verify TLS configuration and client authentication
+echo "Testing TLS configuration and client authentication:"
+sudo openssl s_client -connect localhost:5671 -CAfile $CERT_DIR/ca_cert.pem -cert $CERT_DIR/client_cert.pem -key $CERT_DIR/client_key.pem
