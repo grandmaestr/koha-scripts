@@ -96,13 +96,15 @@ ls -l ./result
 # Rename and move generated cert files
 cd ./result
 sudo mkdir -p "$CERT_DIR"
+sudo chmod 0750 $CERT_DIR 
 sudo mv server*key.pem $CERT_DIR/server_key.pem
 sudo mv server*certificate.pem $CERT_DIR/server_certificate.pem
 sudo mv ca_certificate.pem $CERT_DIR
 
-# Set correct permissions
-sudo chmod 664 "$CERT_DIR/server_key.pem"
-sudo chmod 664 "$CERT_DIR/server_certificate.pem"
+# Set correct permissions and owndership
+sudo chmod 640 "$CERT_DIR/server_key.pem"
+sudo chmod 640 "$CERT_DIR/server_certificate.pem"
+sudo chmod 640 "$CERT_DIR/ca_certificate.pem"
 sudo chown -R rabbitmq:rabbitmq $CERT_DIR
 
 # Generate a random password
