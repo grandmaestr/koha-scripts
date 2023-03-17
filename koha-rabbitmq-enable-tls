@@ -92,8 +92,10 @@ stomp.listeners.ssl.1 = 61614
 
 EOL"
 
-# Restart RabbitMQ
+# Restart RabbitMQ and Koha instance
 sudo systemctl restart rabbitmq-server
+sudo koha-worker --restart $KOHA_INSTANCE
+sudo koha-plack --restart $KOHA_INSTANCE
 
 # Update koha configuration
 sudo xmlstarlet edit -L --update 'yazgfs/config/message_broker/hostname' --value "localhost" $koha_conf
@@ -105,9 +107,9 @@ sudo xmlstarlet edit -L --update 'yazgfs/config/message_broker/password' --value
 # Insert TLS configuration in the koha-conf.xml file
 sudo xmlstarlet edit -L \
   --subnode 'yazgfs/config/message_broker' --type elem --name 'tls' --value '' \
-  --subnode 'yazgfs/config/message_broker/tls' --type elem --name 'ca_cert' --value '$CERT_DIR/ca_cert.pem' \
-  --subnode 'yazgfs/config/message_broker/tls' --type elem --name 'client_cert' --value ' $CERT_DIR/client_cert.pem' \
-  --subnode 'yazgfs/config/message_broker/tls' --type elem --name 'client_key' --value '$CERT_DIR/client_key.pem' \
+  --subnode 'yazgfs/config/message_broker/tls' --type elem --name 'ca_cert' --value "$CERT_DIR/ca_cert.pem" \
+  --subnode 'yazgfs/config/message_broker/tls' --type elem --name 'client_cert' --value "$CERT_DIR/client_cert.pem" \
+  --subnode 'yazgfs/config/message_broker/tls' --type elem --name 'client_key' --value "$CERT_DIR/client_key.pem" \
   $koha_conf
 
 Verify TLS configuration and client authentication
