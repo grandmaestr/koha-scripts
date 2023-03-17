@@ -103,6 +103,7 @@ sudo mv ca_certificate.pem $CERT_DIR
 # Set correct permissions
 sudo chmod 664 "$CERT_DIR/server_key.pem"
 sudo chmod 664 "$CERT_DIR/server_certificate.pem"
+sudo chown -R rabbitmq:rabbitmq $CERT_DIR
 
 # Generate a random password
 rabbit_pass=$(openssl rand -base64 16)
@@ -123,22 +124,22 @@ stomp.listeners.tcp.2 = ::1:61613
 stomp.listeners.ssl.1 = 61614
 
 # Change the default user and password
-stomp.default_user = koha_rabbitmq
-stomp.default_pass = $rabbit_pass
+stomp.default_user = guest
+stomp.default_pass = guest
 EOF
 
-# Enable STOMP
+# Enable STOMPl
 sudo rabbitmq-plugins enable rabbitmq_stomp
 
-# Update the RabbitMQ password and username in koha-conf.xml
-for instancename in "${INSTANCE[@]}"; do
-# Set the path to koha_conf.xml
-koha_conf="/etc/koha/sites/$instancename/koha-conf.xml"
+# # Update the RabbitMQ password and username in koha-conf.xml
+# for instancename in "${INSTANCE[@]}"; do
+# # Set the path to koha_conf.xml
+# koha_conf="/etc/koha/sites/$instancename/koha-conf.xml"
 
-sudo xmlstarlet edit -L --update 'yazgfs/config/message_broker/username' --value "koha_rabbitmq" $koha_conf
-sudo xmlstarlet edit -L --update 'yazgfs/config/message_broker/password' --value "$rabbit_pass" $koha_conf
-sudo xmlstarlet edit -L --update 'yazgfs/config/message_broker/port' --value "61614" $koha_conf
-done
+# sudo xmlstarlet edit -L --update 'yazgfs/config/message_broker/username' --value "koha_rabbitmq" $koha_conf
+# sudo xmlstarlet edit -L --update 'yazgfs/config/message_broker/password' --value "$rabbit_pass" $koha_conf
+# sudo xmlstarlet edit -L --update 'yazgfs/config/message_broker/port' --value "61614" $koha_conf
+# done
 
 # Restart RabbitMQ service
 
