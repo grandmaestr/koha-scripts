@@ -82,6 +82,14 @@ ssl_options.certfile = $CERT_DIR/server_cert.pem
 ssl_options.keyfile = $CERT_DIR/server_key.pem
 ssl_options.verify = verify_peer
 ssl_options.fail_if_no_peer_cert = true
+
+# Listen on localhost only
+stomp.listeners.tcp.1 = 127.0.0.1:61613
+stomp.listeners.tcp.2 = ::1:61613
+
+# default TLS-enabled port for STOMP connections
+stomp.listeners.ssl.1 = 61614
+
 EOL"
 
 # Restart RabbitMQ
@@ -89,9 +97,18 @@ sudo systemctl restart rabbitmq-server
 
 # Update koha configuration
 sudo xmlstarlet edit -L --update 'yazgfs/config/message_broker/hostname' --value "localhost" $koha_conf
-sudo xmlstarlet edit -L --update 'yazgfs/config/message_broker/port' --value "5671" $koha_conf
+sudo xmlstarlet edit -L --update 'yazgfs/config/message_broker/port' --value "61614" $koha_conf
 sudo xmlstarlet edit -L --update 'yazgfs/config/message_broker/username' --value "guest" $koha_conf
 sudo xmlstarlet edit -L --update 'yazgfs/config/message_broker/password' --value "guest" $koha_conf
+
+
+# Insert TLS configuration in the koha-conf.xml file
+sudo xmlstarlet edit -L \
+  --subnode 'yazgfs/config/message_broker' --type elem --name 'tls' --value '' \
+  --subnode 'yazgfs/config/message_broker/tls' --type elem --name 'ca_cert' --value '$CERT_DIR/ca_cert.pem' \
+  --subnode 'yazgfs/config/message_broker/tls' --type elem --name 'client_cert' --value ' $CERT_DIR/client_cert.pem' \
+  --subnode 'yazgfs/config/message_broker/tls' --type elem --name 'client_key' --value '$CERT_DIR/client_key.pem' \
+  $koha_conf
 
 Verify TLS configuration and client authentication
 echo "Testing TLS configuration and client authentication:"
