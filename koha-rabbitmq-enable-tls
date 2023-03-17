@@ -29,17 +29,17 @@ while [[ $# -gt 0 ]]; do
             usage
             exit 0
             ;;
-        --cert-dir)
+        -d|--cert-dir)
             CERT_DIR="$2"
             shift
             shift
             ;;
-        --cert-password)
+        -p|--cert-password)
             CERT_PASSWORD="$2"
             shift
             shift
             ;;
-        --instance)
+        -i|--instance)
             INSTANCE+=("$2")
             shift
             shift
