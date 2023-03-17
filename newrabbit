@@ -1,39 +1,40 @@
 #!/bin/bash
+show_help() {
+  echo "Usage: $0 -i KOHA_INSTANCE -d CERT_DIR"
+  echo
+  echo "Options:"
+  echo "  -i KOHA_INSTANCE   Name of the Koha instance (required)"
+  echo "  -d CERT_DIR        Path to the directory containing the certificates (default: /etc/rabbitmq/tls)"
+  echo
+  echo "This script enables TLS on RabbitMQ and updates Koha configuration to use it."
+}
 
-# Default values
-CN_SERVER="myrabbitmq-server"
-CN_CLIENT="myrabbitmq-client"
-DAYS=3650
-
-# Parse options
-while getopts ":s:c:d:" opt; do
+# Parse command line options
+while getopts ":i:d:h" opt; do
   case $opt in
-    s)
-      CN_SERVER="$OPTARG"
-      ;;
-    c)
-      CN_CLIENT="$OPTARG"
-      ;;
-    d)
-      DAYS="$OPTARG"
-      ;;
-    \?)
-      echo "Invalid option: -$OPTARG" >&2
-      exit 1
-      ;;
-    :)
-      echo "Option -$OPTARG requires an argument." >&2
-      exit 1
-      ;;
+    i) KOHA_INSTANCE="$OPTARG" ;;
+    d) CERT_DIR="$OPTARG" ;;
+    h) show_help; exit 0 ;;
+    \?) echo "Invalid option: -$OPTARG" >&2; show_help; exit 1 ;;
+    :) echo "Option -$OPTARG requires an argument." >&2; show_help; exit 1 ;;
   esac
 done
+
+if [ -z "$KOHA_INSTANCE" ]; then
+  echo "Error: Koha instance name is required." >&2
+  show_help
+  exit 1
+fi
+
+CERT_DIR=${CERT_DIR:-/etc/rabbitmq/tls}
+KOHA_CONF="/etc/koha/sites/$KOHA_INSTANCE/koha-conf.xml"
+
 
 # Update and install packages
 sudo apt update
 sudo apt install -y rabbitmq-server openssl
 
 # Generate self-signed certificates
-CERT_DIR=/etc/rabbitmq/tls
 sudo mkdir -p $CERT_DIR
 cd $CERT_DIR
 sudo openssl genrsa -out ca_key.pem 2048
@@ -62,6 +63,17 @@ ssl_options.keyfile = $CERT_DIR/server_key.pem
 ssl_options.verify = verify_peer
 ssl_options.fail_if_no_peer_cert = true
 EOL"
+
+
+# Update Koha configuration
+sudo xmlstarlet edit -L --update 'yazgfs/config/message_broker/username' --value "guest" "$KOHA_CONF"
+sudo xmlstarlet edit -L --update 'yazgfs/config/message_broker/password' --value "guest" "$KOHA_CONF"
+sudo xmlstarlet edit -L --update 'yazgfs/config/message_broker/port' --value "5671" "$KOHA_CONF"
+sudo xmlstarlet edit -L --update 'yazgfs/config/message_broker/tls/ca_cert' --value "$CERT_DIR/ca_cert.pem" "$KOHA_CONF"
+sudo xmlstarlet edit -L --update 'yazgfs/config/message_broker/tls/client_cert' --value "$CERT_DIR/client_cert.pem" "$KOHA_CONF"
+sudo xmlstarlet edit -L --update 'yazgfs/config/message_broker/tls/client_key' --value "$CERT_DIR/client_key.pem" "$KOHA_CONF"
+
+echo "Koha configuration updated successfully."
 
 # Restart RabbitMQ
 sudo systemctl restart rabbitmq-server
