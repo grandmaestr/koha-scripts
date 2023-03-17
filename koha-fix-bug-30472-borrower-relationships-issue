@@ -2,7 +2,7 @@
 # ------------------------------------------------------------------
 # Author: Lennon Mazonde
 # GitHub: @grandmaestr
-# Title: koha-borrower-relationships-error-fix
+# Title: koha-fix-bug-30472-borrower-relationships-issue
 # Description: 
 # You may encounter the following error while upgrading from Koha 22.06 (or earlier) to 22.11 (or later):
 ##################

@@ -1,0 +1,155 @@
+#!/bin/bash
+# ------------------------------------------------------------------
+# Author: Lennon Mazonde
+# GitHub: @grandmaestr
+# Title: koha-fix-bug-31162-erm_eholdings_packages_agreements_uniq-issue
+# Description: Fixes bug 31162 by dropping and recreating the erm_eholdings_packages_agreements table.
+# ------------------------------------------------------------------
+set -euo pipefail
+
+VERSION=0.1.0
+SCRIPT_NAME="$(basename ${0})"
+SUBJECT=koha-fix-bug-31162-erm_eholdings_packages_agreements_uniq-issue
+
+help() {
+    cat <<EOF
+Usage: $SCRIPT_NAME -ihv args
+
+Options:
+  i - instanceid. The name of the koha instance. One instance id per option.
+  h - help. Print this help.
+  v - version. Print the script version.
+
+Example:
+  To run the script on a single instance called "library", run:
+      $SCRIPT_NAME -i library
+  For multiple instances, run
+      $SCRIPT_NAME -i library1 -i library2 ...
+EOF
+}
+
+if [ $# == 0 ] ; then
+    help
+    exit 1;
+fi
+
+instanceid=()
+while getopts ":i:vh" opt; do
+    case "$opt" in
+        v)
+            echo "Version $VERSION"
+            exit 0;
+            ;;
+        i)
+            instanceid+=("$OPTARG")
+            ;;
+        h)
+            help
+            exit 0;
+            ;;
+        \?)
+            echo "Unknown option $OPTARG"
+            help
+            exit 0;
+            ;;
+        :)
+            echo "Error: you must provide at least one instance name for option -$OPTARG"
+            exit 0;
+            ;;
+        *)
+            echo "Unknown error while processing options"
+            help
+            exit 0;
+            ;;
+    esac
+done
+
+shift $(($OPTIND - 1))
+
+backup() {
+    sudo koha-run-backups
+}
+
+restore() {
+    for instance in "${instanceid[@]}"; do
+        stop_and_remove_koha_instance "$instance"
+        restore_koha_instance_from_backup "$instance"
+    done
+}
+
+stop_and_remove_koha_instance() {
+    local instance=$1
+    sudo koha-worker --stop "$instance"
+    sudo koha-plack --stop "$instance"
+    sudo koha-zebra --stop "$instance"
+    sudo koha-remove "$instance"
+    sudo deluser "${instance}-koha"
+    sudo rm /etc/apache2/sites-enabled/"$instance".conf /etc/apache2/sites-enabled/"$instance"-le-ssl.conf
+    sudo rm -rf /etc/koha/sites/"$instance"
+    sudo rm -rf /var/lib/koha/"$instance"
+    sudo systemctl restart apache2.service "$instance"
+}
+
+restore_koha_instance_from_backup() {
+    local instance=$1
+    local sqldump=$(sudo ls /var/spool/koha/"$instance"/*.sql.gz -t | head -n1)
+    local configdump=$(sudo ls /var/spool/koha/"$instance"/*.tar.gz -t | head -n1)
+    sudo koha-restore "$sqldump" "$configdump"
+    sudo koha-worker --start "$instance"
+    sudo koha-plack --enable "$instance"
+    sudo koha-plack --start "$instance"
+    sudo koha-zebra --start "$instance"
+}
+
+LOCK_FILE=/tmp/$SUBJECT.lock
+if [ -f "$LOCK_FILE" ]; then
+   echo "Script is already running"
+   exit
+fi
+
+trap "rm -f $LOCK_FILE" EXIT
+touch $LOCK_FILE
+
+time=$(date +"%d_%m_%Y_%T")
+for instance in "${instanceid[@]}"; do
+while true; do
+read -p "Drop and recreate the erm_eholdings_packages_agreements table for $instance?: " response
+case $response in
+[yY][eE][sS]|[yY] )
+while true; do
+read -p "Backup all your Koha instances? This step is strongly recommended. (y/n/q): " response
+case $response in
+[yY][eE][sS]|[yY] )
+printf "Running backup. Please be patient.\n"
+backup 2>/dev/null
+printf "Backup complete\n"
+break;;
+[nN][oO]|[nN] )
+printf "Skipping backup.\n"
+break;;
+[qQ][uU][iI][tT] | [qQ] )
+exit;;
+* )
+echo "Invalid response. Try again.";;
+esac
+done
+
+            sudo koha-mysql "$instance" -Nse "DROP TABLE IF EXISTS erm_eholdings_packages_agreements;"
+            sudo koha-mysql "$instance" -Nse "CREATE TABLE erm_eholdings_packages_agreements (package_id int(11) NOT NULL COMMENT 'link to the package', agreement_id int(11) NOT NULL COMMENT 'link to the agreement', PRIMARY KEY (package_id,agreement_id), KEY erm_eholdings_packages_agreements_ibfk_2 (agreement_id), CONSTRAINT erm_eholdings_packages_agreements_ibfk_1 FOREIGN KEY (package_id) REFERENCES erm_eholdings_packages (package_id) ON DELETE CASCADE ON UPDATE CASCADE, CONSTRAINT erm_eholdings_packages_agreements_ibfk_2 FOREIGN KEY (agreement_id) REFERENCES erm_agreements (agreement_id) ON DELETE CASCADE ON UPDATE CASCADE ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;"
+
+            printf "The drop and recreate operation for the erm_eholdings_packages_agreements table for $instance is complete.\n"
+            sleep 1s
+            break;;
+
+        [nN][oO]|[nN] )
+            echo "No changes have been made."
+            break;;
+
+        [qQ][uU][iI][tT] | [qQ] )
+            exit;;
+
+        * )
+            echo "Invalid response. Try again.";;
+    esac
+done
+done
