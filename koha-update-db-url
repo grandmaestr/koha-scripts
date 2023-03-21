@@ -1,4 +1,5 @@
 #!/bin/bash
+set -euo pipefail
 
 # This script updates the URL of your Koha database server.
 
@@ -95,23 +96,26 @@ fi
 # Prompt for missing options
 if [[ -z "$instance" ]]
 then
-  read -p "Enter the name(s) of the Koha instance(s) you want to migrate separated by a space: " -a instance
+  printf "Specify the name(s) of the Koha instance(s) you want to migrate separated by a space."
+  usage
 fi
 
 if [[ -z "$hostname" ]]
 then
-  read -p "Enter the URL/endpoint of your database server: " hostname
+  printf "Specify the URL/endpoint of your database server." 
+  usage
 fi
 
 if [[ -z "$new_db_root" ]]
 then
-  read -p "Enter the username of your database root user: " new_db_root
+  printf "Specify the username of your database root user."
+  usage
 fi
 
 if [[ -z "$new_db_pass" ]]
 then
-  echo "Enter the password for the root user of your database server: "
-  read -s new_db_pass
+  echo "Specify the password for the root user of your database server."
+  usage
 fi
 
 # Enable and start Koha instances
