@@ -1,0 +1,69 @@
+#!/bin/bash
+
+set -x
+
+# set default values for options
+threshold_date=''
+region='us-east-1'
+profile=''
+
+# define usage function
+usage() {
+    echo "Usage: $(basename "$0") -d DATE [-r REGION] -p PROFILE" >&2
+    echo "Delete AMI images older than a specified date in batches of 10" >&2
+    echo "  -d DATE      Image creation date threshold (YYYY-MM-DD)" >&2
+    echo "  -r REGION    AWS region (default: us-east-1)" >&2
+    echo "  -p PROFILE   AWS CLI profile name" >&2
+    echo "  -h           Display this help message and exit" >&2
+}
+
+# parse command line options
+while getopts "d:r:p:h" opt; do
+    case $opt in
+        d)
+            threshold_date="$OPTARG"
+            ;;
+        r)
+            region="$OPTARG"
+            ;;
+        p)
+            profile="$OPTARG"
+            ;;
+        h)
+            usage
+            exit 0
+            ;;
+        \?)
+            usage
+            exit 1
+            ;;
+    esac
+done
+
+# check for required options
+if [[ -z "$threshold_date" || -z "$profile" ]]; then
+    echo "Error: Date threshold and profile not specified" >&2
+    usage
+    exit 1
+fi
+
+# get a list of AMI images older than the threshold date owned by the current user
+image_ids=$(aws ec2 describe-images --owners self --filters Name=creation-date,Values="$threshold_date" --query 'Images[*].[ImageId]' --output text --region "$region" --profile "$profile")
+
+# check if there are any images to delete
+if [[ -z "$image_ids" ]]; then
+    echo "No images found older than $threshold_date."
+    exit 0
+fi
+
+# loop through the array of image IDs and delete them in batches of 10
+for image_id in $image_ids; do
+    echo "Deregistering image $image_id..."
+    if aws ec2 describe-images --image-ids "$image_id" --region "$region" --profile "$profile" >/dev/null 2>&1; then
+        aws ec2 deregister-image --image-id "$image_id" --region "$region" --profile "$profile" || echo "Failed to deregister image $image_id"
+    else
+        echo "Image $image_id not found, skipping..."
+    fi
+done
+
+echo "All images older than $threshold_date have been processed."

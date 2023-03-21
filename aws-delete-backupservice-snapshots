@@ -1,0 +1,74 @@
+#!/bin/bash
+
+set -euo pipefail
+
+# set default values for options
+threshold_date=''
+region='us-east-1'
+profile=''
+vault=''
+
+# define usage function
+usage() {
+    echo "Usage: $(basename "$0") -d DATE -b VAULT [-r REGION] -p PROFILE" >&2
+    echo "Delete AWS Backup snapshots older than a specified date" >&2
+    echo "  -d DATE      Snapshot creation date threshold (YYYY-MM-DD)" >&2
+    echo "  -b VAULT     The name of the AWS Backup Vault" >&2
+    echo "  -r REGION    AWS region (default: us-east-1)" >&2
+    echo "  -p PROFILE   AWS CLI profile name" >&2
+    echo "  -h           Display this help message and exit" >&2
+}
+
+# parse command line options
+while getopts "d:b:r:p:h" opt; do
+    case $opt in
+        d)
+            threshold_date="$OPTARG"
+            ;;
+        b)
+            vault="$OPTARG"
+            ;;
+        r)
+            region="$OPTARG"
+            ;;
+        p)
+            profile="$OPTARG"
+            ;;
+        h)
+            usage
+            exit 0
+            ;;
+        \?)
+            usage
+            exit 1
+            ;;
+    esac
+done
+
+# check for required options
+if [[ -z "$threshold_date" || -z "$profile" || -z "$vault" ]]; then
+    echo "Error: Date threshold, profile, and backup vault name must be specified" >&2
+    usage
+    exit 1
+fi
+
+# get a list of snapshots older than the threshold date owned by the current user
+snapshot_ids=$(aws backup list-recovery-points-by-backup-vault --backup-vault-name "$vault" --by-created-before "$threshold_date" --query "RecoveryPoints[].RecoveryPointArn" --output text --region "$region" --profile "$profile")
+
+# check if there are any snapshots to delete
+if [[ -z "$snapshot_ids" ]]; then
+    echo "No snapshots found older than $threshold_date."
+    exit 0
+fi
+
+# loop through the array of snapshot IDs and delete them
+for snapshot_id in $snapshot_ids; do
+    echo "Deleting snapshot $snapshot_id..."
+    if aws backup describe-recovery-point --backup-vault-name "$vault" --recovery-point-arn "$snapshot_id" --region "$region" --profile "$profile" >/dev/null 2>&1; then
+        aws backup delete-recovery-point --backup-vault-name "$vault" --recovery-point-arn "$snapshot_id" --region "$region" --profile "$profile" || echo "Failed to delete snapshot $snapshot_id"
+    else
+        echo "Snapshot $snapshot_id not found, skipping..."
+    fi
+done
+
+echo "All snapshots older than $threshold_date have been processed."
