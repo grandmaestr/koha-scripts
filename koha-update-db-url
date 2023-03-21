@@ -139,7 +139,7 @@ password = ${new_db_pass}
 socket = /var/run/mysqld/mysqld.sock
 " | sudo tee /etc/mysql/debian.cnf >/dev/null
 
-Reload koha-common and memcached
+# Reload koha-common and memcached
 sudo systemctl restart koha-common.service memcached.service
 echo "Success"
 
