@@ -15,8 +15,18 @@ OPTIONS:
   -p, --password PASSWORD       Password of the database root user.
   -h, --hostname HOSTNAME       Hostname or URL of the new database server.
   -h, --help                    Display this help message.
+
+EXAMPLES:
+  $0 --instance koha1 koha2 --hostname db.example.com --username root --password mypassword
+  $0 -h
 EOF
 }
+
+# Initialize variables
+instance=""
+new_db_root=""
+new_db_pass=""
+hostname=""
 
 # Parse arguments
 while [[ $# -gt 0 ]]
@@ -25,7 +35,7 @@ key="$1"
 
 case $key in
     -i|--instance)
-    instance=($2)
+    instance=("${2}")
     shift
     shift
     ;;
@@ -44,7 +54,7 @@ case $key in
     shift
     shift
     ;;
-    --help)
+    -h|--help)
     usage
     exit 0
     ;;
@@ -57,56 +67,79 @@ esac
 done
 
 # Prompt for missing options
-for var in instance hostname new_db_root new_db_pass; do
-  if [[ -z ${!var} ]]; then
-    printf "Enter ${var//_/\ } : "
-    if [[ "$var" == "new_db_pass" ]]; then
-      read -s input
-    else
-      read input
-    fi
-    declare $var="$input"
-  fi
-done
+missing_options=()
+if [[ -z "$instance" ]]; then missing_options+=("instance(s)"); fi
+if [[ -z "$hostname" ]]; then missing_options+=("hostname"); fi
+if [[ -z "$new_db_root" ]]; then missing_options+=("username"); fi
+if [[ -z "$new_db_pass" ]]; then missing_options+=("password"); fi
+
+if [[ ${#missing_options[@]} -gt 0 ]]; then
+  echo "Missing options: ${missing_options[*]}"
+  usage
+  exit 1
+fi
 
 # Enable and start Koha instances
 for instancename in "${instance[@]}"; do
+
+  # Set the path to koha_conf.xml
   koha_conf=/etc/koha/sites/$instancename/koha-conf.xml
+
+  # Backup the koha-conf.xml file
   sudo rsync -a $koha_conf $koha_conf.$(date +%d_%b_%Hh%M_%Z)
+
+  # Retrieve the Koha user password in koha-conf.xml
   kohadbpwd=$(sudo xmlstarlet sel -t -v 'yazgfs/config/pass' $koha_conf)
+
+  echo "The current DB hostname for $instancename is $(sudo xmlstarlet sel -t -v 'yazgfs/config/hostname' $koha_conf)"
+
+  # Replace database endpoint with remote db endpoint
   sudo xmlstarlet edit -L --update 'yazgfs/config/hostname' --value "$hostname" $koha_conf
 
-  mysql -h ${hostname} -u ${new_db_root} -p${new_db_pass} -e "
-  CREATE DATABASE IF NOT EXISTS koha_${instancename};
-  DROP USER IF EXISTS 'koha_${instancename}'@'%';
-  CREATE USER IF NOT EXISTS 'koha_${instancename}'@'%' IDENTIFIED BY '${kohadbpwd}';
-  GRANT ALL PRIVILEGES ON koha_${instancename}.* to 'koha_${instancename}'@'%';
-  FLUSH PRIVILEGES;"
+  echo "The new  DB hostname for $instancename is $(sudo xmlstarlet sel -t -v 'yazgfs/config/hostname' $koha_conf)"
+
+# Recreate DB user
+mysql -h ${hostname} -u ${new_db_root} -p${new_db_pass} -e "
+CREATE DATABASE IF NOT EXISTS koha_${instancename};
+DROP USER IF EXISTS 'koha_${instancename}'@'%';
+CREATE USER IF NOT EXISTS 'koha_${instancename}'@'%' IDENTIFIED BY '${kohadbpwd}';
+GRANT ALL PRIVILEGES ON koha_${instancename}.* to 'koha_${instancename}'@'%';
+FLUSH PRIVILEGES;"
 done
 
 # Backup the koha-common.cnf and debian.cnf file
 sudo rsync -a /etc/mysql/debian.cnf /etc/mysql/debian.cnf.$(date +%d_%b_%Hh%M_%Z)
 sudo rsync -a /etc/mysql/koha-common.cnf /etc/mysql/koha-common.cnf.$(date +%d_%b_%Hh%M_%Z)
 
-db_config="
+# Update koha-common.cnf with config for remote db
+echo "
 [client]
-host     = ${hostname}
-user     = ${new_db_root}
-password = ${new_db_pass}
-socket   = /var/run/mysqld/mysqld.sock
-[mysql_upgrade]
-host     = ${hostname}
-user     = ${new_db_root}
+host = ${hostname}
+user = ${new_db_root}
 password = ${new_db_pass}
 socket = /var/run/mysqld/mysqld.sock
-"
-
-# Update koha-common.cnf with config for remote db
-echo "$db_config" | sudo tee /etc/mysql/koha-common.cnf >/dev/null
+[mysql_upgrade]
+host = ${hostname}
+user = ${new_db_root}
+password = ${new_db_pass}
+socket = /var/run/mysqld/mysqld.sock
+" | sudo tee /etc/mysql/koha-common.cnf >/dev/null
 
 # Update debian.cnf with config for remote db
-echo "$db_config" | sudo tee /etc/mysql/debian.cnf >/dev/null
+echo "
+[client]
+host = ${hostname}
+user = ${new_db_root}
+password = ${new_db_pass}
+socket = /var/run/mysqld/mysqld.sock
+[mysql_upgrade]
+host = ${hostname}
+user = ${new_db_root}
+password = ${new_db_pass}
+socket = /var/run/mysqld/mysqld.sock
+" | sudo tee /etc/mysql/debian.cnf >/dev/null
 
-# Reload koha-common and memcached
+Reload koha-common and memcached
 sudo systemctl restart koha-common.service memcached.service
 echo "Success"
+
