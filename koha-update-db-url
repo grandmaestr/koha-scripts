@@ -1,5 +1,5 @@
 #!/bin/bash
-set -euo pipefail
+set -euox pipefail
 
 # This script updates the URL of your Koha database server.
 
@@ -12,18 +12,18 @@ This script updates the URL of your Koha database server.
 OPTIONS:
   -i, --instance NAME1 NAME2...  Names of Koha instances to update.
   -u, --username USERNAME       Username of the database root user.
-  -p, --password PASSWORD       Password of the database root user.
-  -h, --hostname HOSTNAME       Hostname or URL of the new database server.
+  -p, --password                Prompt for the password of the database root user.
+  -H, --hostname HOSTNAME       Hostname or URL of the new database server.
   -h, --help                    Display this help message.
 
 EXAMPLES:
-  $0 --instance koha1 koha2 --hostname db.example.com --username root --password mypassword
+  $0 --instance koha1 koha2 --hostname db.example.com --username root --password
   $0 -h
 EOF
 }
 
 # Initialize variables
-instance=""
+instance=()
 new_db_root=""
 new_db_pass=""
 hostname=""
@@ -35,8 +35,10 @@ key="$1"
 
 case $key in
     -i|--instance)
-    instance=("${2}")
-    shift
+    while [[ -n "${2:-}" && ! "${2}" =~ ^- ]]; do
+      instance+=("$2")
+      shift
+    done
     shift
     ;;
     -u|--username)
@@ -45,11 +47,11 @@ case $key in
     shift
     ;;
     -p|--password)
-    new_db_pass="$2"
-    shift
+    read -s -p "Enter database root password: " new_db_pass
+    echo
     shift
     ;;
-    -h|--hostname)
+    -H|--hostname)
     hostname="$2"
     shift
     shift
@@ -68,10 +70,9 @@ done
 
 # Prompt for missing options
 missing_options=()
-if [[ -z "$instance" ]]; then missing_options+=("instance(s)"); fi
+if [[ ${#instance[@]} -eq 0 ]]; then missing_options+=("instance(s)"); fi
 if [[ -z "$hostname" ]]; then missing_options+=("hostname"); fi
 if [[ -z "$new_db_root" ]]; then missing_options+=("username"); fi
-if [[ -z "$new_db_pass" ]]; then missing_options+=("password"); fi
 
 if [[ ${#missing_options[@]} -gt 0 ]]; then
   echo "Missing options: ${missing_options[*]}"
@@ -99,7 +100,7 @@ for instancename in "${instance[@]}"; do
   echo "The new  DB hostname for $instancename is $(sudo xmlstarlet sel -t -v 'yazgfs/config/hostname' $koha_conf)"
 
 # Recreate DB user
-mysql -h ${hostname} -u ${new_db_root} -p${new_db_pass} -e "
+mysql -h ${hostname} -u ${new_db_root} -p"${new_db_pass}" -e "
 CREATE DATABASE IF NOT EXISTS koha_${instancename};
 DROP USER IF EXISTS 'koha_${instancename}'@'%';
 CREATE USER IF NOT EXISTS 'koha_${instancename}'@'%' IDENTIFIED BY '${kohadbpwd}';
@@ -142,4 +143,3 @@ socket = /var/run/mysqld/mysqld.sock
 # Reload koha-common and memcached
 sudo systemctl restart koha-common.service memcached.service
 echo "Success"
-
