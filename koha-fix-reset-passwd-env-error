@@ -11,15 +11,19 @@ if [ "$EUID" -ne 0 ]; then
   exit 1
 fi
 
+# Define file paths
+admin_dir="/bin/admin"
+set_password_pl="/usr/share/koha/bin/admin/set_password.pl"
+
 # Create the /bin/admin directory
-mkdir -p /bin/admin
+mkdir -p "$admin_dir"
 
 # Create a symbolic link to set_password.pl
-ln -sf /usr/share/koha/bin/admin/set_password.pl /bin/admin/set_password.pl
+ln -sf "$set_password_pl" "$admin_dir/set_password.pl"
 
 # Insert "use lib '/usr/share/koha/lib';" on line 20
 sed -i "20i\\
-use lib '/usr/share/koha/lib';" /bin/admin/set_password.pl
+use lib '/usr/share/koha/lib';" "$admin_dir/set_password.pl"
 
 # Inform the user that the setup is complete
 echo "Koha admin setup complete."
