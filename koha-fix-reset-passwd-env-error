@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Description: This script sets up the required environment for the 'set_password.pl' script in the Koha library system.
-# It creates the /bin/admin directory, creates a symbolic link to set_password.pl, and inserts a line at the beginning of the file.
+# It creates the /bin/admin directory, creates a symbolic link to set_password.pl, and inserts a line in the file.
 
 # Usage: sudo bash setup_koha_admin.sh
 
@@ -17,8 +17,9 @@ mkdir -p /bin/admin
 # Create a symbolic link to set_password.pl
 ln -sf /usr/share/koha/bin/admin/set_password.pl /bin/admin/set_password.pl
 
-# Insert "use '/usr/share/koha/lib'" at the beginning of set_password.pl
-sed -i '1i use '\''/usr/share/koha/lib'\'';' /bin/admin/set_password.pl
+# Insert "use lib '/usr/share/koha/lib';" on line 20
+sed -i "20i\\
+use lib '/usr/share/koha/lib';" /bin/admin/set_password.pl
 
 # Inform the user that the setup is complete
 echo "Koha admin setup complete."
