@@ -84,10 +84,18 @@ dump_instance() {
 if [ "$schema_only" = "yes" ]; then
 schemadump="$backupdir/$name-schema-$date.sql"
 [ "$quiet" = "no" ] && echo "* schema to $schemadump"
-mysqldump $dbflag --no-tablespaces -d --host="$mysqlhost" --single-transaction --user="$mysqluser" --password="$mysqlpass" "$mysqldb" | sed --expression='s/ AUTO_INCREMENT=[0-9]+//' >"$schemadump"
+# See:
+# https://bugs.mysql.com/bug.php?id=109685#c530123
+# https://repost.aws/knowledge-center/mysqldump-error-rds-mysql-mariadbhttps://snapshooter.com/docs/fixing-mysqldump-couldn-t-execute-flush-tables-access-denied
+# mysqldump $dbflag --no-tablespaces -d --host="$mysqlhost" --single-transaction --user="$mysqluser" --password="$mysqlpass" "$mysqldb" | sed --expression='s/ AUTO_INCREMENT=[0-9]+//' >"$schemadump"
+mysqldump $dbflag --no-tablespaces -d --host="$mysqlhost" --user="$mysqluser" --password="$mysqlpass" "$mysqldb" | sed --expression='s/ AUTO_INCREMENT=[0-9]+//' >"$schemadump"
 else
 [ "$quiet" = "no" ] && echo "* DB to $dbdump"
-mysqldump $dbflag --no-tablespaces --host="$mysqlhost" --single-transaction --user="$mysqluser" --password="$mysqlpass" "$mysqldb" | gzip >"$dbdump"
+# See:
+# https://bugs.mysql.com/bug.php?id=109685#c530123
+# https://repost.aws/knowledge-center/mysqldump-error-rds-mysql-mariadbhttps://snapshooter.com/docs/fixing-mysqldump-couldn-t-execute-flush-tables-access-denied
+# mysqldump $dbflag --no-tablespaces --host="$mysqlhost" --single-transaction --user="$mysqluser" --password="$mysqlpass" "$mysqldb" | gzip >"$dbdump"
+mysqldump $dbflag --no-tablespaces --host="$mysqlhost"  --user="$mysqluser" --password="$mysqlpass" "$mysqldb" | gzip >"$dbdump"
 instancefile="$name.conf"
 
 # Dump configs, logs, etc.
