@@ -110,7 +110,8 @@ if [ "$exclude_indexes" = "yes" ]; then
               --exclude=var/lib/koha/$name/authorities"
 fi
 
-sudo tar -czf "$metadump" -C / $excludes \
+sudo tar -czf "$metadump" -C / --ignore-failed-read $excludes \
+  --exclude="var/log/koha/$name/plack.log" \
   "etc/koha/sites/$name" \
   "etc/apache2/sites-available/$instancefile" \
   "etc/apache2/sites-enabled/$instancefile" \
