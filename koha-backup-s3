@@ -88,14 +88,16 @@ schemadump="$backupdir/$name-schema-$date.sql"
 # https://bugs.mysql.com/bug.php?id=109685#c530123
 # https://repost.aws/knowledge-center/mysqldump-error-rds-mysql-mariadbhttps://snapshooter.com/docs/fixing-mysqldump-couldn-t-execute-flush-tables-access-denied
 # mysqldump $dbflag --no-tablespaces -d --host="$mysqlhost" --single-transaction --user="$mysqluser" --password="$mysqlpass" "$mysqldb" | sed --expression='s/ AUTO_INCREMENT=[0-9]+//' >"$schemadump"
-mysqldump $dbflag --no-tablespaces -d --host="$mysqlhost" --user="$mysqluser" --password="$mysqlpass" "$mysqldb" | sed --expression='s/ AUTO_INCREMENT=[0-9]+//' >"$schemadump"
+mysqldump $dbflag --no-tablespaces --set-gtid-purged=OFF --column-statistics=0  -d --host="$mysqlhost" --user="$mysqluser" --password="$mysqlpass" "$mysqldb" | sed --expression='s/ AUTO_INCREMENT=[0-9]+//' >"$schemadump"
 else
 [ "$quiet" = "no" ] && echo "* DB to $dbdump"
 # See:
+# https://stackoverflow.com/questions/52423595/mysqldump-couldnt-execute-unknown-table-column-statistics-in-information-sc
 # https://bugs.mysql.com/bug.php?id=109685#c530123
-# https://repost.aws/knowledge-center/mysqldump-error-rds-mysql-mariadbhttps://snapshooter.com/docs/fixing-mysqldump-couldn-t-execute-flush-tables-access-denied
+# https://repost.aws/knowledge-center/mysqldump-error-rds-mysql-mariadb
+# https://snapshooter.com/docs/fixing-mysqldump-couldn-t-execute-flush-tables-access-denied
 # mysqldump $dbflag --no-tablespaces --host="$mysqlhost" --single-transaction --user="$mysqluser" --password="$mysqlpass" "$mysqldb" | gzip >"$dbdump"
-mysqldump $dbflag --no-tablespaces --host="$mysqlhost"  --user="$mysqluser" --password="$mysqlpass" "$mysqldb" | gzip >"$dbdump"
+mysqldump $dbflag --no-tablespaces --set-gtid-purged=OFF --column-statistics=0 --host="$mysqlhost"  --user="$mysqluser" --password="$mysqlpass" "$mysqldb" | gzip >"$dbdump"
 instancefile="$name.conf"
 
 # Dump configs, logs, etc.
