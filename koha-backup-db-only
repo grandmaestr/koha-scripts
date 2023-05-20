@@ -116,7 +116,7 @@ dump_db() {
 # https://repost.aws/knowledge-center/mysqldump-error-rds-mysql-mariadb
 # https://snapshooter.com/docs/fixing-mysqldump-couldn-t-execute-flush-tables-access-denied
 # mysqldump $dbflag --no-tablespaces --host="$mysqlhost" --single-transaction --user="$mysqluser" --password="$mysqlpass" "$mysqldb" | gzip >"$dbdump"
-mysqldump -h "$kohadbhost" -u "$kohadbuser" -p"$kohadbpwd" --single-transaction --databases --no-tablespaces --set-gtid-purged=OFF --column-statistics=0 "koha_${instance_name}" > "${DUMP_DIR}/koha_${instance_name}-$date.sql"
+mysqldump -h "$kohadbhost" -u "$kohadbuser" -p"$kohadbpwd"  --databases --no-tablespaces --set-gtid-purged=OFF --column-statistics=0 "koha_${instance_name}" > "${DUMP_DIR}/koha_${instance_name}-$date.sql"
 }
 
 # Lock file to prevent concurrent execution
