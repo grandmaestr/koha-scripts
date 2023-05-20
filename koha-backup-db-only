@@ -110,7 +110,13 @@ dump_db() {
   date=$(date +"%m-%d-%Y-%Hh%M")
 
 # Dump Koha database
-mysqldump -h "$kohadbhost" -u "$kohadbuser" -p"$kohadbpwd" --single-transaction --databases --no-tablespaces "koha_${instance_name}" > "${DUMP_DIR}/koha_${instance_name}-$date.sql"
+# See:
+# https://stackoverflow.com/questions/52423595/mysqldump-couldnt-execute-unknown-table-column-statistics-in-information-sc
+# https://bugs.mysql.com/bug.php?id=109685#c530123
+# https://repost.aws/knowledge-center/mysqldump-error-rds-mysql-mariadb
+# https://snapshooter.com/docs/fixing-mysqldump-couldn-t-execute-flush-tables-access-denied
+# mysqldump $dbflag --no-tablespaces --host="$mysqlhost" --single-transaction --user="$mysqluser" --password="$mysqlpass" "$mysqldb" | gzip >"$dbdump"
+mysqldump -h "$kohadbhost" -u "$kohadbuser" -p"$kohadbpwd" --single-transaction --databases --no-tablespaces --set-gtid-purged=OFF --column-statistics=0 "koha_${instance_name}" > "${DUMP_DIR}/koha_${instance_name}-$date.sql"
 }
 
 # Lock file to prevent concurrent execution

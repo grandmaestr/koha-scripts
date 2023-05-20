@@ -88,6 +88,7 @@ schemadump="$backupdir/$name-schema-$date.sql"
 # https://bugs.mysql.com/bug.php?id=109685#c530123
 # https://repost.aws/knowledge-center/mysqldump-error-rds-mysql-mariadbhttps://snapshooter.com/docs/fixing-mysqldump-couldn-t-execute-flush-tables-access-denied
 # mysqldump $dbflag --no-tablespaces -d --host="$mysqlhost" --single-transaction --user="$mysqluser" --password="$mysqlpass" "$mysqldb" | sed --expression='s/ AUTO_INCREMENT=[0-9]+//' >"$schemadump"
+#  Set --column-statistics=0 to fix mysqldump unknown table column_statistics error in RDS
 mysqldump $dbflag --no-tablespaces --set-gtid-purged=OFF --column-statistics=0  -d --host="$mysqlhost" --user="$mysqluser" --password="$mysqlpass" "$mysqldb" | sed --expression='s/ AUTO_INCREMENT=[0-9]+//' >"$schemadump"
 else
 [ "$quiet" = "no" ] && echo "* DB to $dbdump"
