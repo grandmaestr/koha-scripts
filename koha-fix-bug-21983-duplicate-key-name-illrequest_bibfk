@@ -1,0 +1,58 @@
+#!/bin/bash
+
+if [ $# -ne 1 ]; then
+  echo "Usage: $0 <instance_name>"
+  exit 1
+fi
+
+instance_name=$1
+
+# List of foreign keys to drop
+foreign_keys=("illrequests_bcfk_2" "illrequests_bnfk" "illrequests_ibfk_1" "illrequests_safk")
+
+# Connect to the Koha database and drop the foreign keys
+for key in "${foreign_keys[@]}"; do
+  echo "Dropping foreign key $key..."
+  koha-mysql $instance_name <<EOF
+    ALTER TABLE illrequests DROP FOREIGN KEY $key;
+EOF
+
+  if [ $? -eq 0 ]; then
+    echo "Foreign key $key dropped successfully."
+  else
+    echo "Error: Failed to drop foreign key $key."
+    exit 1
+  fi
+done
+
+# Drop the index 'illrequests_bibfk'
+echo "Dropping index 'illrequests_bibfk'..."
+koha-mysql $instance_name <<EOF
+  ALTER TABLE illrequests DROP INDEX illrequests_bibfk;
+EOF
+
+if [ $? -eq 0 ]; then
+  echo "Index 'illrequests_bibfk' dropped successfully."
+else
+  echo "Error: Failed to drop index 'illrequests_bibfk'."
+  exit 1
+fi
+
+# Re-add all the foreign keys
+echo "Re-adding foreign keys..."
+koha-mysql $instance_name <<EOF
+  ALTER TABLE illrequests
+    ADD CONSTRAINT illrequests_bcfk_2 FOREIGN KEY (branchcode) REFERENCES branches (branchcode) ON DELETE CASCADE ON UPDATE CASCADE,
+    ADD CONSTRAINT illrequests_bibfk FOREIGN KEY (biblio_id) REFERENCES biblio (biblionumber) ON DELETE SET NULL ON UPDATE CASCADE,
+    ADD CONSTRAINT illrequests_bnfk FOREIGN KEY (borrowernumber) REFERENCES borrowers (borrowernumber) ON DELETE CASCADE ON UPDATE CASCADE,
+    ADD CONSTRAINT illrequests_safk FOREIGN KEY (status_alias) REFERENCES authorised_values (authorised_value) ON DELETE SET NULL ON UPDATE CASCADE;
+EOF
+
+if [ $? -eq 0 ]; then
+  echo "Foreign keys re-added successfully."
+else
+  echo "Error: Failed to re-add foreign keys."
+  exit 1
+fi
+
+echo "Script completed successfully."
