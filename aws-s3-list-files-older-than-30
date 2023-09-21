@@ -41,7 +41,7 @@ done
 
 # Calculate the timestamp for the threshold
 threshold_timestamp=$(date -d "$threshold_days days ago" +%s)
-detected_file_list=/tmp/file_list_${threshold_timestamp}.txt
+detected_file_list="/tmp/file_list_${threshold_timestamp}.txt"
 
 # List all objects in the S3 bucket and filter those older than the threshold
 aws s3 ls "${bucket_name}" --recursive --human-readable --summarize | \
