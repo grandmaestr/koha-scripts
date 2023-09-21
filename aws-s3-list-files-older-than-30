@@ -1,24 +1,29 @@
 #!/bin/bash
 
 usage() {
-  echo "Usage: $0 [-b <bucket-name>] [-d <days>] [-h]"
-  echo "  -b <bucket-name>  Specify the S3 bucket name (default: use \$S3_BUCKET environment variable)"
-  echo "  -d <days>         Specify the number of days for the threshold (default: 30)"
-  echo "  -h                Display this help message"
+  echo "Usage: $0 [-b <bucket-name>] [-d <days>] [-e <exclude-folder>]... [-h]"
+  echo "  -b <bucket-name>      Specify the S3 bucket name (default: use \$S3_BUCKET environment variable)"
+  echo "  -d <days>             Specify the number of days for the threshold (default: 30)"
+  echo "  -e <exclude-folder>   Specify folders to exclude (multiple can be provided)"
+  echo "  -h                    Display this help message"
   exit 1
 }
 
 # Default values
 bucket_name="$S3_BUCKET"
 threshold_days=30
+excluded_folders=()
 
-while getopts ":b:d:h" opt; do
+while getopts ":b:d:e:h" opt; do
   case "$opt" in
     b)
       bucket_name="$OPTARG"
       ;;
     d)
       threshold_days="$OPTARG"
+      ;;
+    e)
+      excluded_folders+=("$OPTARG")
       ;;
     h)
       usage
@@ -44,7 +49,17 @@ while read -r line; do
     timestamp=$(echo "$line" | awk '{print $1, $2}')
     file=$(echo "$line" | awk '{$1=$2=""; print $0}')
     file_timestamp=$(date -d "$timestamp" +%s)
-    if [ "$file_timestamp" -lt "$threshold_timestamp" ]; then
+    
+    # Check if the file is in an excluded folder
+    is_excluded=false
+    for folder in "${excluded_folders[@]}"; do
+        if [[ "$file" == *"$folder"* ]]; then
+            is_excluded=true
+            break
+        fi
+    done
+    
+    if [ "$file_timestamp" -lt "$threshold_timestamp" ] && [ "$is_excluded" = false ]; then
         echo "File: $file, Timestamp: $timestamp"
     fi
 done
