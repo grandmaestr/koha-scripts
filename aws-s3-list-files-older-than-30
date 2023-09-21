@@ -41,6 +41,7 @@ done
 
 # Calculate the timestamp for the threshold
 threshold_timestamp=$(date -d "$threshold_days days ago" +%s)
+detected_file_list=/tmp/file_list_${threshold_timestamp}.txt
 
 # List all objects in the S3 bucket and filter those older than the threshold
 aws s3 ls "${bucket_name}" --recursive --human-readable --summarize | \
@@ -61,13 +62,20 @@ while read -r line; do
     
     if [ "$file_timestamp" -lt "$threshold_timestamp" ] && [ "$is_excluded" = false ]; then
         echo "File: $file, Timestamp: $timestamp"
-
-      # Prompt to delete the file
-      read -r -p "Do you want to delete this file? (yes/no): " delete_choice
-      if [ "$delete_choice" == "yes" ]; then
-          # Delete the file
-          aws s3 rm "s3://${bucket_name}${file}"
-          echo "File deleted: $file"
-      fi
+        echo "s3://${bucket_name}${file}" >> $detected_file_list
     fi
+
+    # Prompt to delete the file
+    read -r -p "Do you want to delete detected files? (yes/no): " delete_choice
+
+    if [[ "$delete_choice" == "yes" ]]; then
+        while IFS= read -r line; do
+            aws s3 rm "$line"
+        done < "$detected_file_list"
+
+        echo "File deletion complete"
+    else
+        echo "No files were deleted."
+    fi
+
 done
