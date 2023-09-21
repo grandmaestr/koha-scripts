@@ -63,10 +63,10 @@ while read -r line; do
         echo "File: $file, Timestamp: $timestamp"
         
         # Prompt to delete the file
-        read -p "Do you want to delete this file? (yes/no): " delete_choice
+        read -r -p "Do you want to delete this file? (yes/no): " delete_choice
         if [ "$delete_choice" == "yes" ]; then
             # Delete the file
-            aws s3 rm "s3://${bucket_name}${file}" 
+            aws s3 rm "s3://${bucket_name}${file}"
             echo "File deleted: $file"
         fi
     fi
