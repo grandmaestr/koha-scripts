@@ -69,5 +69,5 @@ while read -r line; do
           aws s3 rm "s3://${bucket_name}${file}"
           echo "File deleted: $file"
       fi
-    if
+    fi
 done
