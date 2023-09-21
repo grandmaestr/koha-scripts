@@ -64,18 +64,17 @@ while read -r line; do
         echo "File: $file, Timestamp: $timestamp"
         echo "s3://${bucket_name}${file}" >> $detected_file_list
     fi
-
-    # Prompt to delete the file
-    read -r -p "Do you want to delete detected files? (yes/no): " delete_choice
-
-    if [[ "$delete_choice" == "yes" ]]; then
-        while IFS= read -r line; do
-            aws s3 rm "$line"
-        done < "$detected_file_list"
-
-        echo "File deletion complete"
-    else
-        echo "No files were deleted."
-    fi
-
 done
+
+# Prompt to delete the file
+read -r -p "Do you want to delete detected files? (yes/no): " delete_choice
+
+if [[ "$delete_choice" == "yes" ]]; then
+    while IFS= read -r line; do
+        aws s3 rm "$line"
+    done < "$detected_file_list"
+
+    echo "File deletion complete"
+else
+    echo "No files were deleted."
+fi
