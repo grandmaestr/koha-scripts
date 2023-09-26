@@ -1,0 +1,21 @@
+---
+- name: Fix GB frame visibility for label printer
+  hosts: localhost
+  connection: local
+  become: true
+  become_user: root
+  tasks:
+
+    - name: "Replace #GB_frame block in HTML file"
+      ansible.builtin.lineinfile:
+        path: /usr/share/koha/intranet/htdocs/intranet-tmpl/lib/greybox/loader_frame.html
+        regexp: 'visibility: hidden;'
+        line: '    visibility: visible;'
+        backup: true
+
+    - name: "Replace #GB_frame block in HTML file"
+      ansible.builtin.lineinfile:
+        path: /usr/share/koha/intranet/htdocs/intranet-tmpl/lib/greybox/GreyBox_v5_5/greybox_source/base/loader_frame.html
+        regexp: 'visibility: hidden;'
+        line: '    visibility: visible;'
+        backup: true
