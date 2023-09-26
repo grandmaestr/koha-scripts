@@ -9,13 +9,13 @@
     - name: "Replace #GB_frame block in HTML file"
       ansible.builtin.lineinfile:
         path: /usr/share/koha/intranet/htdocs/intranet-tmpl/lib/greybox/loader_frame.html
-        regexp: 'visibility: hidden;'
-        line: '    visibility: visible;'
+        regexp: '^(\s*)visibility:(\s*)hidden(\s*);(\s*)'
+        line: '    visibility: visible ;'
         backup: true
 
     - name: "Replace #GB_frame block in HTML file"
       ansible.builtin.lineinfile:
         path: /usr/share/koha/intranet/htdocs/intranet-tmpl/lib/greybox/GreyBox_v5_5/greybox_source/base/loader_frame.html
-        regexp: 'visibility: hidden;'
+        regexp: '^(\s*)visibility:(\s*)hidden(\s*);(\s*)'
         line: '    visibility: visible;'
         backup: true
