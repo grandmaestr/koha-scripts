@@ -24,20 +24,19 @@ EOF
     exit 1
   fi
 
-# Re-add all the foreign keys
-echo "Re-adding foreign keys..."
-koha-mysql $instance_name <<EOF
-  ALTER TABLE tmp_holdsqueue
-    ADD CONSTRAINT `$key` FOREIGN KEY (`itemnumber`) REFERENCES `items` (`itemnumber`) ON DELETE CASCADE ON UPDATE CASCADE,
+  # Re-add the foreign key
+  echo "Re-adding foreign key $key..."
+  koha-mysql $instance_name <<EOF
+    ALTER TABLE tmp_holdsqueue
+      ADD CONSTRAINT \`$key\` FOREIGN KEY (\`itemnumber\`) REFERENCES \`items\` (\`itemnumber\`) ON DELETE CASCADE ON UPDATE CASCADE;
 EOF
 
-if [ $? -eq 0 ]; then
-  echo "Foreign key $key re-added successfully."
-else
-  echo "Error: Failed to re-add foreign key $key"
-  exit 1
-fi
+  if [ $? -eq 0 ]; then
+    echo "Foreign key $key re-added successfully."
+  else
+    echo "Error: Failed to re-add foreign key $key."
+    exit 1
+  fi
+done
 
 echo "Script completed successfully."
-
-done
