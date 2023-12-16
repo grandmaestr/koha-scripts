@@ -1,0 +1,90 @@
+#!/bin/bash
+#
+# The provided script is designed to address the "Cannot change column 'itemnumber': used in a foreign key constraint 'tmp_holdsqueue_ibfk_1'" error that occurs during the upgrade process of the Koha library management software. The error message is as follows:
+# Upgrade to 23.06.00.013 [10:07:26]: Bug 28966 - Holds queue view too slow to load for large numbers of holds
+# ERROR - {UNKNOWN}: DBI Exception: DBD::mysql::db do failed: Cannot change column 'itemnumber': used in a foreign key constraint 'tmp_holdsqueue_ibfk_1' at /usr/share/koha/lib/C4/Installer.pm line 741
+# This error arises when attempting to upgrade Koha to version 23.06.00.013, specifically during the modification of the 'itemnumber' column. The issue lies in the presence of a foreign key constraint named 'tmp_holdsqueue_ibfk_1' that references the 'itemnumber' column, preventing the modification. The script aims to resolve this error by intelligently dropping and re-adding the problematic foreign key in each specified Koha instance.
+usage() {
+  echo "Usage: $0 -i <instance_name(s)>"
+  echo "  -i <instance_name(s)>: Specify one or more Koha instance names separated by commas or spaces."
+  echo "  -h: Display this help message."
+  exit 1
+}
+
+while getopts ":i:h" opt; do
+  case $opt in
+    i)
+      instance_names=$OPTARG
+      ;;
+    h)
+      usage
+      ;;
+    \?)
+      echo "Invalid option: -$OPTARG" >&2
+      usage
+      ;;
+    :)
+      echo "Option -$OPTARG requires an argument." >&2
+      usage
+      ;;
+  esac
+done
+
+if [ -z "$instance_names" ]; then
+  echo "Error: Koha instance names not specified."
+  usage
+fi
+
+# Split instance names based on both commas and spaces
+IFS=' ' read -ra instances <<< "$instance_names"
+
+# List of foreign keys to drop
+foreign_keys=("tmp_holdsqueue_ibfk_1")
+
+for instance_name in "${instances[@]}"; do
+  # Connect to the Koha database and drop the foreign keys
+  for key in "${foreign_keys[@]}"; do
+    echo "Dropping foreign key $key for instance $instance_name..."
+    # Check if the foreign key exists before attempting to drop it
+    existing_key=$(koha-mysql $instance_name -e "SHOW CREATE TABLE tmp_holdsqueue" | grep "$key")
+    if [ -z "$existing_key" ]; then
+      echo "Foreign key $key does not exist. Skipping drop..."
+    else
+      koha-mysql $instance_name <<EOF
+        ALTER TABLE tmp_holdsqueue DROP FOREIGN KEY $key;
+EOF
+      if [ $? -eq 0 ]; then
+        echo "Foreign key $key dropped successfully."
+      else
+        echo "Error: Failed to drop foreign key $key. Continuing..."
+      fi
+    fi
+
+    # Continue with the upgrade process
+    koha-upgrade-schema $instance_name
+    
+    if [ $? -eq 0 ]; then
+      echo "koha-upgrade-schema successful for instance $instance_name"
+    else
+      echo "Error: koha-upgrade-schema failed for instance $instance_name. Continuing..."
+    fi
+
+    # Re-add the foreign key
+    echo "Re-adding foreign key $key for instance $instance_name..."
+    koha-mysql $instance_name <<EOF
+      ALTER TABLE tmp_holdsqueue
+        ADD CONSTRAINT \`$key\` FOREIGN KEY (\`itemnumber\`) REFERENCES \`items\` (\`itemnumber\`) ON DELETE CASCADE ON UPDATE CASCADE;
+EOF
+
+    if [ $? -eq 0 ]; then
+      echo "Foreign key $key re-added successfully."
+    else
+      echo "Error: Failed to re-add foreign key $key. Exiting..."
+      exit 1
+    fi
+  done
+
+  echo "Finished processing instance: $instance_name"
+done
+
+echo "Script completed successfully."
