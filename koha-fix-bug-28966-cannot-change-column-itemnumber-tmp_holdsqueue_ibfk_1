@@ -13,15 +13,19 @@ foreign_keys=("tmp_holdsqueue_ibfk_1")
 # Connect to the Koha database and drop the foreign keys
 for key in "${foreign_keys[@]}"; do
   echo "Dropping foreign key $key..."
-  koha-mysql $instance_name <<EOF
-    ALTER TABLE tmp_holdsqueue DROP FOREIGN KEY $key;
-EOF
-
-  if [ $? -eq 0 ]; then
-    echo "Foreign key $key dropped successfully."
+  # Check if the foreign key exists before attempting to drop it
+  existing_key=$(koha-mysql $instance_name -e "SHOW CREATE TABLE tmp_holdsqueue" | grep "$key")
+  if [ -z "$existing_key" ]; then
+    echo "Foreign key $key does not exist. Skipping drop..."
   else
-    echo "Error: Failed to drop foreign key $key."
-    exit 1
+    koha-mysql $instance_name <<EOF
+      ALTER TABLE tmp_holdsqueue DROP FOREIGN KEY $key;
+EOF
+    if [ $? -eq 0 ]; then
+      echo "Foreign key $key dropped successfully."
+    else
+      echo "Error: Failed to drop foreign key $key. Continuing..."
+    fi
   fi
 
   # Re-add the foreign key
@@ -34,7 +38,7 @@ EOF
   if [ $? -eq 0 ]; then
     echo "Foreign key $key re-added successfully."
   else
-    echo "Error: Failed to re-add foreign key $key."
+    echo "Error: Failed to re-add foreign key $key. Exiting..."
     exit 1
   fi
 done
