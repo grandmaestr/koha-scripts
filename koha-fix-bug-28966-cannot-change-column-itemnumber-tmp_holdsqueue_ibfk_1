@@ -36,7 +36,7 @@ if [ -z "$instance_names" ]; then
 fi
 
 # Split instance names based on both commas and spaces
-IFS=', ' read -ra instances <<< "$instance_names"
+IFS=' ' read -ra instances <<< "$instance_names"
 
 # List of foreign keys to drop
 foreign_keys=("tmp_holdsqueue_ibfk_1")
@@ -62,6 +62,12 @@ EOF
 
     # Continue with the upgrade process
     koha-upgrade-schema $instance_name
+    
+    if [ $? -eq 0 ]; then
+      echo "koha-upgrade-schema successful for instance $instance_name"
+    else
+      echo "Error: koha-upgrade-schema failed for instance $instance_name. Continuing..."
+    fi
 
     # Re-add the foreign key
     echo "Re-adding foreign key $key for instance $instance_name..."
