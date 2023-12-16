@@ -1,0 +1,43 @@
+#!/bin/bash
+
+if [ $# -ne 1 ]; then
+  echo "Usage: $0 <instance_name>"
+  exit 1
+fi
+
+instance_name=$1
+
+# List of foreign keys to drop
+foreign_keys=("tmp_holdsqueue_ibfk_1")
+
+# Connect to the Koha database and drop the foreign keys
+for key in "${foreign_keys[@]}"; do
+  echo "Dropping foreign key $key..."
+  koha-mysql $instance_name <<EOF
+    ALTER TABLE tmp_holdsqueue DROP FOREIGN KEY $key;
+EOF
+
+  if [ $? -eq 0 ]; then
+    echo "Foreign key $key dropped successfully."
+  else
+    echo "Error: Failed to drop foreign key $key."
+    exit 1
+  fi
+
+# Re-add all the foreign keys
+echo "Re-adding foreign keys..."
+koha-mysql $instance_name <<EOF
+  ALTER TABLE tmp_holdsqueue
+    ADD CONSTRAINT `$key` FOREIGN KEY (`itemnumber`) REFERENCES `items` (`itemnumber`) ON DELETE CASCADE ON UPDATE CASCADE,
+EOF
+
+if [ $? -eq 0 ]; then
+  echo "Foreign key $key re-added successfully."
+else
+  echo "Error: Failed to re-add foreign key $key"
+  exit 1
+fi
+
+echo "Script completed successfully."
+
+done
