@@ -1,5 +1,9 @@
 #!/bin/bash
-
+#
+# The provided script is designed to address the "Cannot change column 'itemnumber': used in a foreign key constraint 'tmp_holdsqueue_ibfk_1'" error that occurs during the upgrade process of the Koha library management software. The error message is as follows:
+# Upgrade to 23.06.00.013 [10:07:26]: Bug 28966 - Holds queue view too slow to load for large numbers of holds
+# ERROR - {UNKNOWN}: DBI Exception: DBD::mysql::db do failed: Cannot change column 'itemnumber': used in a foreign key constraint 'tmp_holdsqueue_ibfk_1' at /usr/share/koha/lib/C4/Installer.pm line 741
+# This error arises when attempting to upgrade Koha to version 23.06.00.013, specifically during the modification of the 'itemnumber' column. The issue lies in the presence of a foreign key constraint named 'tmp_holdsqueue_ibfk_1' that references the 'itemnumber' column, preventing the modification. The script aims to resolve this error by intelligently dropping and re-adding the problematic foreign key in each specified Koha instance.
 usage() {
   echo "Usage: $0 -i <instance_name(s)>"
   echo "  -i <instance_name(s)>: Specify one or more Koha instance names separated by commas or spaces."
@@ -57,7 +61,7 @@ EOF
     fi
 
     # Continue with the upgrade process
-    apt upgrade -y
+    koha-upgrade-schema $instance_name
 
     # Re-add the foreign key
     echo "Re-adding foreign key $key for instance $instance_name..."
