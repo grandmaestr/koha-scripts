@@ -1,7 +1,5 @@
 #!/bin/bash
 
-set -ex
-
 # Show usage
 function usage {
     echo "Usage: $0 [OPTIONS] sqldump configdump"
